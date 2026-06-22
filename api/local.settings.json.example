@@ -1,0 +1,17 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "PGHOST":     "sspostgreserver.postgres.database.azure.com",
+    "PGPORT":     "5432",
+    "PGDATABASE": "school-academic-hub",
+    "PGUSER":     "software@simplysaas.co.za",
+    "PGPASSWORD": "YOUR_DB_PASSWORD_HERE",
+    "JWT_SECRET":       "change-this-to-a-long-random-string-for-school-users",
+    "JWT_SECRET_SUPER": "change-this-to-a-different-long-random-string-for-super-admin",
+    "RESEND_API_KEY": "re_YOUR_RESEND_KEY_HERE",
+    "RESEND_FROM":    "noreply@yourdomain.com",
+    "GOOGLE_SERVICE_ACCOUNT_JSON": "{\"type\":\"service_account\",...}"
+  }
+}
