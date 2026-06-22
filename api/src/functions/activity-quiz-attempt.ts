@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { createItem, queryItems } from '../lib/cosmos';
+import { sql, insertItem } from '../lib/db';
 import { requireAuth, requireRole, errorResponse, HttpError } from '../lib/middleware';
 import { QuizAttemptDoc } from '../types';
 import { randomUUID } from 'crypto';
@@ -19,21 +19,16 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       throw new HttpError(400, 'post_id, score, total required');
     }
 
-    // Count existing attempts for this student + post to auto-increment
-    const existing = await queryItems<{ id: string }>(
-      {
-        query: 'SELECT c.id FROM c WHERE c.school_id = @sid AND c.type = @type AND c.post_id = @pid AND c.student_id = @stid',
-        parameters: [
-          { name: '@sid',  value: jwt.school_id },
-          { name: '@type', value: 'quiz_attempt' },
-          { name: '@pid',  value: body.post_id },
-          { name: '@stid', value: jwt.user_id },
-        ],
-      },
-      jwt.school_id
-    );
+    const countRows = await sql<{ count: string }[]>`
+      SELECT COUNT(*)::text AS count FROM items
+      WHERE school_id = ${jwt.school_id} AND type = 'quiz_attempt'
+        AND data->>'post_id' = ${body.post_id}
+        AND data->>'student_id' = ${jwt.user_id}`;
 
-    const pct  = body.total > 0 ? Math.round((body.score / body.total) * 100) : 0;
+    const attemptNumber = Number(countRows[0]?.count ?? 0) + 1;
+    const pct           = body.total > 0 ? Math.round((body.score / body.total) * 100) : 0;
+    const now           = new Date().toISOString();
+
     const doc: QuizAttemptDoc = {
       id:                 randomUUID(),
       school_id:          jwt.school_id,
@@ -45,28 +40,22 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       post_title:         body.post_title ?? '',
       subject:            body.subject ?? '',
       term:               body.term ?? '',
-      attempt_number:     existing.length + 1,
+      attempt_number:     attemptNumber,
       score:              body.score,
       total:              body.total,
       percentage:         pct,
       passed:             pct >= 80,
       answers:            body.answers ?? [],
       time_taken_seconds: body.time_taken_seconds,
-      timestamp:          new Date().toISOString(),
-      created_at:         new Date().toISOString(),
-      ttl:                63_072_000,
+      timestamp:          now,
+      created_at:         now,
     };
 
-    await createItem(doc);
+    await insertItem(doc);
     return { status: 201, jsonBody: { ok: true, percentage: pct, passed: doc.passed, attempt_number: doc.attempt_number } };
   } catch (err) {
     return errorResponse(err);
   }
 }
 
-app.http('activity-quiz-attempt', {
-  methods: ['POST'],
-  authLevel: 'anonymous',
-  route: 'activity/quiz-attempt',
-  handler,
-});
+app.http('activity-quiz-attempt', { methods: ['POST'], authLevel: 'anonymous', route: 'activity/quiz-attempt', handler });

@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { getItem, queryItems, getSchoolBySlug } from '../lib/cosmos';
+import { sql, getItemById, getSchoolBySlug } from '../lib/db';
 import { requireAuth, requireRole, errorResponse, HttpError } from '../lib/middleware';
 import { buildViewersExport } from '../lib/excel';
 import { PostDoc, ActivityDoc } from '../types';
@@ -10,18 +10,18 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     requireRole(jwt, ['teacher', 'admin', 'super_admin']);
 
     const id   = req.params.id;
-    const post = await getItem<PostDoc>(id, jwt.school_id);
+    const post = await getItemById<PostDoc>(id);
     if (!post) throw new HttpError(404, 'Post not found');
 
-    const [school, activities] = await Promise.all([
+    const [school, activityRows] = await Promise.all([
       getSchoolBySlug(jwt.school_id),
-      queryItems<ActivityDoc>(
-        { query: 'SELECT * FROM c WHERE c.school_id = @sid AND c.type = @type AND c.post_id = @pid', parameters: [{ name: '@sid', value: jwt.school_id }, { name: '@type', value: 'activity' }, { name: '@pid', value: id }] },
-        jwt.school_id
-      ),
+      sql<{ data: ActivityDoc }[]>`
+        SELECT data FROM items
+        WHERE school_id = ${jwt.school_id} AND type = 'activity'
+          AND data->>'post_id' = ${id}`,
     ]);
 
-    const buffer   = await buildViewersExport(post, activities, school);
+    const buffer   = await buildViewersExport(post, activityRows.map((r) => r.data), school);
     const filename = `viewers-${post.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.xlsx`;
 
     return {
@@ -36,9 +36,4 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
   }
 }
 
-app.http('export-post-viewers', {
-  methods: ['GET'],
-  authLevel: 'anonymous',
-  route: 'admin/export/post/{id}/viewers',
-  handler,
-});
+app.http('export-post-viewers', { methods: ['GET'], authLevel: 'anonymous', route: 'admin/export/post/{id}/viewers', handler });

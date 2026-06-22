@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { getSchoolBySlug } from '../lib/cosmos';
+import { getSchoolBySlug } from '../lib/db';
 import { errorResponse } from '../lib/middleware';
 
 async function handler(req: HttpRequest, ctx: InvocationContext): Promise<HttpResponseInit> {

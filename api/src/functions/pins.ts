@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { queryItems, createItem, deleteItem } from '../lib/cosmos';
+import { sql, insertItem, deleteItemById } from '../lib/db';
 import { requireAuth, requireRole, errorResponse, HttpError } from '../lib/middleware';
 import { hashPin } from '../lib/auth';
 import { PinDoc } from '../types';
@@ -11,17 +11,15 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     requireRole(jwt, ['admin', 'super_admin']);
 
     if (req.method === 'GET') {
-      const pins = await queryItems<PinDoc>(
-        { query: 'SELECT c.id, c.role, c.grade, c.label FROM c WHERE c.school_id = @sid AND c.type = @type', parameters: [{ name: '@sid', value: jwt.school_id }, { name: '@type', value: 'pin' }] },
-        jwt.school_id
-      );
-      return { jsonBody: pins };
+      const rows = await sql<{ data: PinDoc }[]>`
+        SELECT data FROM items WHERE school_id = ${jwt.school_id} AND type = 'pin'`;
+      return { jsonBody: rows.map(({ data: p }) => ({ id: p.id, role: p.role, grade: p.grade, label: p.label })) };
     }
 
     if (req.method === 'POST') {
       const body = await req.json() as { role: string; grade?: number; pin: string; label: string };
       if (!body.role || !body.pin || !body.label) throw new HttpError(400, 'role, pin, and label required');
-      if (!/^\d{4,8}$/.test(body.pin)) throw new HttpError(400, 'PIN must be 4–8 digits');
+      if (!/^\d{4,8}$/.test(body.pin)) throw new HttpError(400, 'PIN must be 4-8 digits');
 
       const doc: PinDoc = {
         id:         randomUUID(),
@@ -33,12 +31,12 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
         label:      body.label.trim(),
         created_at: new Date().toISOString(),
       };
-      await createItem(doc);
+      await insertItem(doc);
       return { status: 201, jsonBody: { id: doc.id, role: doc.role, grade: doc.grade, label: doc.label } };
     }
 
     if (req.method === 'DELETE') {
-      await deleteItem(req.params.id, jwt.school_id);
+      await deleteItemById(req.params.id);
       return { status: 204 };
     }
 

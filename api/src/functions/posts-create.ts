@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { createItem } from '../lib/cosmos';
+import { insertItem } from '../lib/db';
 import { requireAuth, requireRole, errorResponse, HttpError } from '../lib/middleware';
 import { PostDoc } from '../types';
 import { randomUUID } from 'crypto';
@@ -43,16 +43,11 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       }],
     };
 
-    const created = await createItem(post);
+    const created = await insertItem(post);
     return { status: 201, jsonBody: created };
   } catch (err) {
     return errorResponse(err);
   }
 }
 
-app.http('posts-create', {
-  methods: ['POST'],
-  authLevel: 'anonymous',
-  route: 'posts',
-  handler,
-});
+app.http('posts-create', { methods: ['POST'], authLevel: 'anonymous', route: 'posts', handler });

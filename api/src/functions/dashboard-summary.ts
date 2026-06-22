@@ -1,45 +1,34 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { queryItems } from '../lib/cosmos';
+import { sql } from '../lib/db';
 import { requireAuth, requireRole, errorResponse } from '../lib/middleware';
-import { PostDoc, QuizAttemptDoc } from '../types';
 
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
   try {
     const jwt = requireAuth(req);
     requireRole(jwt, ['teacher', 'admin', 'super_admin']);
 
-    const gradeFilter = jwt.role === 'teacher' ? ` AND c.grade = ${jwt.grade}` : '';
+    const gradeClause = jwt.role === 'teacher' && jwt.grade
+      ? sql` AND (data->>'grade')::int = ${jwt.grade}`
+      : sql``;
 
-    const [posts, attempts] = await Promise.all([
-      queryItems<Pick<PostDoc, 'id' | 'status' | 'quiz_json'>>(
-        { query: `SELECT c.id, c.status, c.quiz_json FROM c WHERE c.school_id = @sid AND c.type = 'post'${gradeFilter}`, parameters: [{ name: '@sid', value: jwt.school_id }] },
-        jwt.school_id
-      ),
-      queryItems<Pick<QuizAttemptDoc, 'percentage'>>(
-        { query: `SELECT c.percentage FROM c WHERE c.school_id = @sid AND c.type = 'quiz_attempt'${gradeFilter}`, parameters: [{ name: '@sid', value: jwt.school_id }] },
-        jwt.school_id
-      ),
+    const [postRows, attemptRows] = await Promise.all([
+      sql<{ status: string; quiz_json: string }[]>`
+        SELECT data->>'status' AS status, data->>'quiz_json' AS quiz_json FROM items
+        WHERE school_id = ${jwt.school_id} AND type = 'post'${gradeClause}`,
+      sql<{ percentage: string }[]>`
+        SELECT data->>'percentage' AS percentage FROM items
+        WHERE school_id = ${jwt.school_id} AND type = 'quiz_attempt'${gradeClause}`,
     ]);
 
-    const published    = posts.filter((p) => p.status === 'published');
+    const published     = postRows.filter((p) => p.status === 'published');
     const activeQuizzes = published.filter((p) => { try { return JSON.parse(p.quiz_json || '[]').length > 0; } catch { return false; } });
-    const avgScore     = attempts.length > 0 ? Math.round(attempts.reduce((s, a) => s + a.percentage, 0) / attempts.length) : null;
+    const attempts      = attemptRows.map((r) => Number(r.percentage));
+    const avgScore      = attempts.length > 0 ? Math.round(attempts.reduce((s, v) => s + v, 0) / attempts.length) : null;
 
-    return {
-      jsonBody: {
-        published_posts: published.length,
-        active_quizzes:  activeQuizzes.length,
-        avg_quiz_score:  avgScore,
-      },
-    };
+    return { jsonBody: { published_posts: published.length, active_quizzes: activeQuizzes.length, avg_quiz_score: avgScore } };
   } catch (err) {
     return errorResponse(err);
   }
 }
 
-app.http('dashboard-summary', {
-  methods: ['GET'],
-  authLevel: 'anonymous',
-  route: 'dashboard/summary',
-  handler,
-});
+app.http('dashboard-summary', { methods: ['GET'], authLevel: 'anonymous', route: 'dashboard/summary', handler });

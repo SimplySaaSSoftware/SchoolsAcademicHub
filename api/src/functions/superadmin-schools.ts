@@ -1,8 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { queryItems, createItem, updateItem } from '../lib/cosmos';
+import { sql, insertItem, updateItemById } from '../lib/db';
 import { requireAuth, requireRole, errorResponse, HttpError } from '../lib/middleware';
 import { SchoolDoc } from '../types';
-import { randomUUID } from 'crypto';
 
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
   try {
@@ -10,11 +9,9 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     requireRole(jwt, ['super_admin']);
 
     if (req.method === 'GET') {
-      const schools = await queryItems<SchoolDoc>({
-        query: 'SELECT * FROM c WHERE c.type = @type ORDER BY c.name ASC',
-        parameters: [{ name: '@type', value: 'school' }],
-      });
-      return { jsonBody: schools };
+      const rows = await sql<{ data: SchoolDoc }[]>`
+        SELECT data FROM items WHERE type = 'school' ORDER BY data->>'name' ASC`;
+      return { jsonBody: rows.map((r) => r.data) };
     }
 
     if (req.method === 'POST') {
@@ -23,27 +20,27 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
 
       const slug = body.slug.toLowerCase().replace(/[^a-z0-9-]/g, '-');
       const doc: SchoolDoc = {
-        id:              slug,
-        school_id:       slug,
-        type:            'school',
+        id:             slug,
+        school_id:      slug,
+        type:           'school',
         slug,
-        name:            body.name,
-        logo_url:        body.logo_url        ?? '',
-        primary_colour:  body.primary_colour  ?? '#1a56a0',
-        auth_mode:       body.auth_mode       ?? 'pin',
-        student_auth:    body.student_auth    ?? 'grade_pin',
-        grades:          body.grades          ?? [1,2,3,4,5,6,7],
-        active:          true,
-        created_at:      new Date().toISOString(),
+        name:           body.name,
+        logo_url:       body.logo_url       ?? '',
+        primary_colour: body.primary_colour ?? '#1a56a0',
+        auth_mode:      body.auth_mode      ?? 'pin',
+        student_auth:   body.student_auth   ?? 'grade_pin',
+        grades:         body.grades         ?? [1, 2, 3, 4, 5, 6, 7],
+        active:         true,
+        created_at:     new Date().toISOString(),
       };
-      await createItem(doc);
+      await insertItem(doc);
       return { status: 201, jsonBody: doc };
     }
 
     if (req.method === 'PUT') {
       const id   = req.params.id;
       const body = await req.json() as Partial<SchoolDoc>;
-      await updateItem(id, id, body);
+      await updateItemById<SchoolDoc>(id, id, 'school', body);
       return { jsonBody: { ok: true } };
     }
 
@@ -53,5 +50,5 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
   }
 }
 
-app.http('superadmin-schools',      { methods: ['GET', 'POST'], authLevel: 'anonymous', route: 'superadmin/schools',       handler });
-app.http('superadmin-schools-by-id', { methods: ['PUT'],         authLevel: 'anonymous', route: 'superadmin/schools/{id}',  handler });
+app.http('superadmin-schools',       { methods: ['GET', 'POST'], authLevel: 'anonymous', route: 'superadmin/schools',      handler });
+app.http('superadmin-schools-by-id', { methods: ['PUT'],         authLevel: 'anonymous', route: 'superadmin/schools/{id}', handler });

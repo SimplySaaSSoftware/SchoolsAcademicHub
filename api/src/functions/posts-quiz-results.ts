@@ -1,34 +1,22 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { queryItems } from '../lib/cosmos';
+import { sql } from '../lib/db';
 import { requireAuth, requireRole, errorResponse } from '../lib/middleware';
-import { QuizAttemptDoc } from '../types';
 
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
   try {
     const jwt = requireAuth(req);
     requireRole(jwt, ['teacher', 'admin', 'super_admin']);
 
-    const attempts = await queryItems<QuizAttemptDoc>(
-      {
-        query: 'SELECT * FROM c WHERE c.school_id = @sid AND c.type = @type AND c.post_id = @pid ORDER BY c.student_name ASC, c.attempt_number ASC',
-        parameters: [
-          { name: '@sid',  value: jwt.school_id },
-          { name: '@type', value: 'quiz_attempt' },
-          { name: '@pid',  value: req.params.id },
-        ],
-      },
-      jwt.school_id
-    );
+    const rows = await sql<{ data: any }[]>`
+      SELECT data FROM items
+      WHERE school_id = ${jwt.school_id} AND type = 'quiz_attempt'
+        AND data->>'post_id' = ${req.params.id}
+      ORDER BY data->>'student_name' ASC, (data->>'attempt_number')::int ASC`;
 
-    return { jsonBody: attempts };
+    return { jsonBody: rows.map((r) => r.data) };
   } catch (err) {
     return errorResponse(err);
   }
 }
 
-app.http('posts-quiz-results', {
-  methods: ['GET'],
-  authLevel: 'anonymous',
-  route: 'posts/{id}/quiz-results',
-  handler,
-});
+app.http('posts-quiz-results', { methods: ['GET'], authLevel: 'anonymous', route: 'posts/{id}/quiz-results', handler });

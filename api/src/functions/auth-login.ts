@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { getSchoolBySlug, queryItems } from '../lib/cosmos';
+import { sql, getSchoolBySlug } from '../lib/db';
 import { verifyPin, verifyPassword, signToken, studentExpiry } from '../lib/auth';
 import { errorResponse, HttpError } from '../lib/middleware';
 import { PinDoc, UserDoc, SchoolDoc } from '../types';
@@ -9,18 +9,12 @@ const SUPER_HASH  = process.env.SUPER_ADMIN_PASSWORD_HASH!;
 
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
   try {
-    const body = await req.json() as {
-      slug?: string;
-      pin?: string;
-      email?: string;
-      password?: string;
-    };
+    const body = await req.json() as { slug?: string; pin?: string; email?: string; password?: string };
 
-    // ---- Super admin login (no slug required) ----
+    // Super admin
     if (body.email === SUPER_EMAIL) {
       if (!body.password) throw new HttpError(400, 'Password required');
-      const ok = await verifyPassword(body.password, SUPER_HASH);
-      if (!ok) throw new HttpError(401, 'Invalid credentials');
+      if (!(await verifyPassword(body.password, SUPER_HASH))) throw new HttpError(401, 'Invalid credentials');
       const token = signToken({ school_id: 'system', user_id: 'super_admin', role: 'super_admin', name: 'Super Admin' });
       return { jsonBody: { token, role: 'super_admin', name: 'Super Admin' } };
     }
@@ -29,16 +23,14 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     const school: SchoolDoc = await getSchoolBySlug(body.slug);
     if (!school || !school.active) throw new HttpError(404, 'School not found');
 
-    // ---- PIN login ----
+    // PIN login
     if (school.auth_mode === 'pin' || body.pin) {
       if (!body.pin) throw new HttpError(400, 'PIN required');
-      const pins = await queryItems<PinDoc>(
-        { query: 'SELECT * FROM c WHERE c.school_id = @sid AND c.type = @type', parameters: [{ name: '@sid', value: school.school_id }, { name: '@type', value: 'pin' }] },
-        school.school_id
-      );
-      for (const p of pins) {
-        const ok = await verifyPin(body.pin, p.pin_hash);
-        if (ok) {
+      const rows = await sql<{ data: PinDoc }[]>`
+        SELECT data FROM items WHERE school_id = ${school.school_id} AND type = 'pin'`;
+      for (const row of rows) {
+        const p = row.data;
+        if (await verifyPin(body.pin, p.pin_hash)) {
           const token = signToken(
             { school_id: school.school_id, user_id: p.id, role: p.role, grade: p.grade, name: p.label },
             studentExpiry(p.role)
@@ -49,23 +41,16 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       throw new HttpError(401, 'Invalid PIN');
     }
 
-    // ---- Email / password login ----
+    // Email / password login
     if (!body.email || !body.password) throw new HttpError(400, 'Email and password required');
-    const users = await queryItems<UserDoc>(
-      {
-        query: 'SELECT * FROM c WHERE c.school_id = @sid AND c.type = @type AND c.email = @email AND c.active = true',
-        parameters: [
-          { name: '@sid',   value: school.school_id },
-          { name: '@type',  value: 'user' },
-          { name: '@email', value: body.email.toLowerCase().trim() },
-        ],
-      },
-      school.school_id
-    );
-    const user = users[0];
+    const rows = await sql<{ data: UserDoc }[]>`
+      SELECT data FROM items
+      WHERE school_id = ${school.school_id} AND type = 'user'
+        AND data->>'email' = ${body.email.toLowerCase().trim()}
+        AND (data->>'active')::boolean = true`;
+    const user = rows[0]?.data;
     if (!user) throw new HttpError(401, 'Invalid credentials');
-    const ok = await verifyPassword(body.password, user.password_hash);
-    if (!ok) throw new HttpError(401, 'Invalid credentials');
+    if (!(await verifyPassword(body.password, user.password_hash))) throw new HttpError(401, 'Invalid credentials');
 
     const token = signToken(
       { school_id: school.school_id, user_id: user.id, role: user.role, grade: user.grade, name: user.name },
@@ -78,24 +63,11 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
   }
 }
 
-function buildResponse(token: string, role: string, grade: number | undefined, name: string | undefined, school: SchoolDoc) {
+function buildResponse(token: string, role: any, grade: number | undefined, name: string | undefined, school: SchoolDoc) {
   return {
     token, role, grade, name,
-    school: {
-      slug:           school.slug,
-      name:           school.name,
-      logo_url:       school.logo_url,
-      primary_colour: school.primary_colour,
-      auth_mode:      school.auth_mode,
-      student_auth:   school.student_auth,
-      grades:         school.grades,
-    },
+    school: { slug: school.slug, name: school.name, logo_url: school.logo_url, primary_colour: school.primary_colour, auth_mode: school.auth_mode, student_auth: school.student_auth, grades: school.grades },
   };
 }
 
-app.http('auth-login', {
-  methods: ['POST'],
-  authLevel: 'anonymous',
-  route: 'auth/login',
-  handler,
-});
+app.http('auth-login', { methods: ['POST'], authLevel: 'anonymous', route: 'auth/login', handler });

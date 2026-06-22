@@ -1,34 +1,22 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { queryItems } from '../lib/cosmos';
+import { sql } from '../lib/db';
 import { requireAuth, requireRole, errorResponse } from '../lib/middleware';
-import { ActivityDoc } from '../types';
 
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
   try {
     const jwt = requireAuth(req);
     requireRole(jwt, ['teacher', 'admin', 'super_admin']);
 
-    const activities = await queryItems<ActivityDoc>(
-      {
-        query: 'SELECT * FROM c WHERE c.school_id = @sid AND c.type = @type AND c.post_id = @pid ORDER BY c.timestamp ASC',
-        parameters: [
-          { name: '@sid',  value: jwt.school_id },
-          { name: '@type', value: 'activity' },
-          { name: '@pid',  value: req.params.id },
-        ],
-      },
-      jwt.school_id
-    );
+    const rows = await sql<{ data: any }[]>`
+      SELECT data FROM items
+      WHERE school_id = ${jwt.school_id} AND type = 'activity'
+        AND data->>'post_id' = ${req.params.id}
+      ORDER BY data->>'timestamp' ASC`;
 
-    return { jsonBody: activities };
+    return { jsonBody: rows.map((r) => r.data) };
   } catch (err) {
     return errorResponse(err);
   }
 }
 
-app.http('posts-viewers', {
-  methods: ['GET'],
-  authLevel: 'anonymous',
-  route: 'posts/{id}/viewers',
-  handler,
-});
+app.http('posts-viewers', { methods: ['GET'], authLevel: 'anonymous', route: 'posts/{id}/viewers', handler });

@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { queryItems, getSchoolBySlug } from '../lib/cosmos';
+import { sql, getSchoolBySlug } from '../lib/db';
 import { requireAuth, requireRole, errorResponse } from '../lib/middleware';
 import { buildPostsExport } from '../lib/excel';
 import { PostDoc, QuizAttemptDoc } from '../types';
@@ -9,17 +9,17 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     const jwt = requireAuth(req);
     requireRole(jwt, ['admin', 'super_admin']);
 
-    const [school, posts, attempts] = await Promise.all([
+    const [school, postRows, attemptRows] = await Promise.all([
       getSchoolBySlug(jwt.school_id),
-      queryItems<PostDoc>(
-        { query: 'SELECT * FROM c WHERE c.school_id = @sid AND c.type = @type ORDER BY c.created_at DESC', parameters: [{ name: '@sid', value: jwt.school_id }, { name: '@type', value: 'post' }] },
-        jwt.school_id
-      ),
-      queryItems<QuizAttemptDoc>(
-        { query: 'SELECT * FROM c WHERE c.school_id = @sid AND c.type = @type', parameters: [{ name: '@sid', value: jwt.school_id }, { name: '@type', value: 'quiz_attempt' }] },
-        jwt.school_id
-      ),
+      sql<{ data: PostDoc }[]>`
+        SELECT data FROM items WHERE school_id = ${jwt.school_id} AND type = 'post'
+        ORDER BY data->>'created_at' DESC`,
+      sql<{ data: QuizAttemptDoc }[]>`
+        SELECT data FROM items WHERE school_id = ${jwt.school_id} AND type = 'quiz_attempt'`,
     ]);
+
+    const posts    = postRows.map((r) => r.data);
+    const attempts = attemptRows.map((r) => r.data);
 
     const attemptsByPost = new Map<string, QuizAttemptDoc[]>();
     attempts.forEach((a) => {
@@ -27,7 +27,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       attemptsByPost.get(a.post_id)!.push(a);
     });
 
-    const buffer = await buildPostsExport(posts, attemptsByPost, school);
+    const buffer   = await buildPostsExport(posts, attemptsByPost, school);
     const filename = `posts-export-${new Date().toISOString().slice(0, 10)}.xlsx`;
 
     return {
@@ -42,9 +42,4 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
   }
 }
 
-app.http('export-posts', {
-  methods: ['GET'],
-  authLevel: 'anonymous',
-  route: 'admin/export/posts',
-  handler,
-});
+app.http('export-posts', { methods: ['GET'], authLevel: 'anonymous', route: 'admin/export/posts', handler });

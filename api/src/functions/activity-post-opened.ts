@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { createItem } from '../lib/cosmos';
+import { insertItem } from '../lib/db';
 import { requireAuth, requireRole, errorResponse, HttpError } from '../lib/middleware';
 import { ActivityDoc } from '../types';
 import { randomUUID } from 'crypto';
@@ -14,6 +14,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     };
     if (!post_id) throw new HttpError(400, 'post_id required');
 
+    const now = new Date().toISOString();
     const doc: ActivityDoc = {
       id:           randomUUID(),
       school_id:    jwt.school_id,
@@ -26,21 +27,15 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       post_title:   post_title ?? '',
       subject:      subject ?? '',
       term:         term ?? '',
-      timestamp:    new Date().toISOString(),
-      created_at:   new Date().toISOString(),
-      ttl:          63_072_000, // 2 years
+      timestamp:    now,
+      created_at:   now,
     };
 
-    await createItem(doc);
+    await insertItem(doc);
     return { jsonBody: { ok: true } };
   } catch (err) {
     return errorResponse(err);
   }
 }
 
-app.http('activity-post-opened', {
-  methods: ['POST'],
-  authLevel: 'anonymous',
-  route: 'activity/post-opened',
-  handler,
-});
+app.http('activity-post-opened', { methods: ['POST'], authLevel: 'anonymous', route: 'activity/post-opened', handler });
