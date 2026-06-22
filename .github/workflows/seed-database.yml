@@ -49,24 +49,15 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install postgres client
-        run: npm install postgres bcryptjs
-
-      - name: Run seed
+      - name: Run seed via API
         env:
-          PGHOST:     ${{ secrets.PGHOST }}
-          PGPORT:     ${{ secrets.PGPORT }}
-          PGDATABASE: ${{ secrets.PGDATABASE }}
-          PGUSER:     ${{ secrets.PGUSER }}
-          PGPASSWORD: ${{ secrets.PGPASSWORD }}
-          SCHOOL_NAME:    ${{ github.event.inputs.school_name }}
-          SCHOOL_SLUG:    ${{ github.event.inputs.school_slug }}
-          SCHOOL_LOGO:    ${{ github.event.inputs.school_logo_url }}
-          PRIMARY_COLOUR: ${{ github.event.inputs.primary_colour }}
-          AUTH_MODE:      ${{ github.event.inputs.auth_mode }}
-          STUDENT_AUTH:   ${{ github.event.inputs.student_auth }}
-          GRADES:         ${{ github.event.inputs.grades }}
+          APP_URL:          'https://polite-island-0106b4103.7.azurestaticapps.net'
+          SUPER_ADMIN_TOKEN: ${{ secrets.SUPER_ADMIN_TOKEN }}
+          SCHOOL_NAME:      ${{ github.event.inputs.school_name }}
+          SCHOOL_SLUG:      ${{ github.event.inputs.school_slug }}
+          SCHOOL_LOGO:      ${{ github.event.inputs.school_logo_url }}
+          PRIMARY_COLOUR:   ${{ github.event.inputs.primary_colour }}
+          AUTH_MODE:        ${{ github.event.inputs.auth_mode }}
+          STUDENT_AUTH:     ${{ github.event.inputs.student_auth }}
+          GRADES:           ${{ github.event.inputs.grades }}
         run: node seed.js
-
-      - name: Done
-        run: echo "Seed complete. Visit https://polite-island-0106b4103.7.azurestaticapps.net/${{ github.event.inputs.school_slug }} to test login."

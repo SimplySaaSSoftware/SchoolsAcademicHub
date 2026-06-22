@@ -1,66 +1,65 @@
-// One-time database seed script — run via GitHub Action
-const postgres = require('postgres');
+// Seed via the deployed API — no direct DB connection needed
+const https = require('https');
 
-const sql = postgres({
-  host:     process.env.PGHOST,
-  port:     Number(process.env.PGPORT || 5432),
-  database: process.env.PGDATABASE,
-  username: process.env.PGUSER,
-  password: process.env.PGPASSWORD,
-  ssl:      'require',
-  max:      1,
-});
+const BASE_URL = process.env.APP_URL.replace(/\/$/, '');
+const TOKEN    = process.env.SUPER_ADMIN_TOKEN;
+
+function apiCall(method, path, body) {
+  return new Promise((resolve, reject) => {
+    const url  = new URL(`${BASE_URL}/api${path}`);
+    const data = body ? JSON.stringify(body) : null;
+    const req  = https.request({
+      hostname: url.hostname,
+      path:     url.pathname,
+      method,
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${TOKEN}`,
+        ...(data ? { 'Content-Length': Buffer.byteLength(data) } : {}),
+      },
+    }, (res) => {
+      let raw = '';
+      res.on('data', (c) => raw += c);
+      res.on('end', () => {
+        try { resolve({ status: res.statusCode, body: JSON.parse(raw) }); }
+        catch { resolve({ status: res.statusCode, body: raw }); }
+      });
+    });
+    req.on('error', reject);
+    if (data) req.write(data);
+    req.end();
+  });
+}
 
 async function main() {
-  console.log('Creating schema...');
-  await sql.unsafe(`
-    CREATE TABLE IF NOT EXISTS items (
-      id         TEXT        NOT NULL PRIMARY KEY,
-      school_id  TEXT        NOT NULL,
-      type       TEXT        NOT NULL,
-      data       JSONB       NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )`);
-  await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_items_school_type ON items (school_id, type)`);
-  await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_items_type ON items (type)`);
-  console.log('Schema ready.');
-
   const slug   = process.env.SCHOOL_SLUG;
   const grades = process.env.GRADES.split(',').map(Number).filter(Boolean);
 
-  // Check if school already exists
-  const existing = await sql`SELECT id FROM items WHERE id = ${slug} AND type = 'school'`;
-  if (existing.length) {
-    console.log(`School "${slug}" already exists — skipping.`);
+  // 1. Init schema
+  console.log('Initialising schema...');
+  const init = await apiCall('POST', '/admin/init-schema', {});
+  console.log('Schema:', init.status, JSON.stringify(init.body));
+  if (init.status !== 200) { console.error('Schema init failed'); process.exit(1); }
+
+  // 2. Create school
+  console.log(`Creating school "${process.env.SCHOOL_NAME}"...`);
+  const school = await apiCall('POST', '/superadmin/schools', {
+    slug,
+    name:           process.env.SCHOOL_NAME,
+    logo_url:       process.env.SCHOOL_LOGO || '',
+    primary_colour: process.env.PRIMARY_COLOUR || '#1a56a0',
+    auth_mode:      process.env.AUTH_MODE || 'pin',
+    student_auth:   process.env.STUDENT_AUTH || 'grade_pin',
+    grades,
+  });
+  console.log('School:', school.status, JSON.stringify(school.body));
+  if (school.status === 201) {
+    console.log(`\nSchool created! Login at: ${BASE_URL}/${slug}`);
+  } else if (school.status === 409 || (school.body?.error || '').includes('already')) {
+    console.log('School already exists — skipping.');
   } else {
-    const now  = new Date().toISOString();
-    const doc  = {
-      id:             slug,
-      school_id:      slug,
-      type:           'school',
-      slug,
-      name:           process.env.SCHOOL_NAME,
-      logo_url:       process.env.SCHOOL_LOGO || '',
-      primary_colour: process.env.PRIMARY_COLOUR || '#1a56a0',
-      auth_mode:      process.env.AUTH_MODE || 'pin',
-      student_auth:   process.env.STUDENT_AUTH || 'grade_pin',
-      grades,
-      active:         true,
-      created_at:     now,
-    };
-
-    await sql`
-      INSERT INTO items (id, school_id, type, data)
-      VALUES (${doc.id}, ${doc.school_id}, ${doc.type}, ${sql.json(doc)})`;
-    console.log(`School "${doc.name}" created at /${slug}`);
+    console.error('Failed to create school'); process.exit(1);
   }
-
-  console.log('\nDone! Next steps:');
-  console.log('1. Add SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD_HASH to Azure env vars');
-  console.log('2. Visit the login page to test');
-
-  await sql.end();
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
