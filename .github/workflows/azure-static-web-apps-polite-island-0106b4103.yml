@@ -30,23 +30,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: api/package-lock.json
 
-      - name: Build API (TypeScript)
+      - name: Build API (TypeScript → dist/)
         run: |
           cd api
           npm ci
           npm run build
-
-      - name: Install OIDC Client from Core Package
-        run: npm install @actions/core@1.6.0 @actions/http-client
-
-      - name: Get Id Token
-        uses: actions/github-script@v6
-        id: idtoken
-        with:
-          script: |
-            const coredemo = require('@actions/core')
-            return await coredemo.getIDToken()
-          result-encoding: string
 
       - name: Build And Deploy
         id: builddeploy
@@ -57,8 +45,7 @@ jobs:
           app_location: "frontend"
           api_location: "api"
           output_location: ""
-          skip_api_build: true
-          github_id_token: ${{ steps.idtoken.outputs.result }}
+          app_build_command: "echo 'no frontend build needed'"
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
@@ -66,7 +53,6 @@ jobs:
     name: Close Pull Request Job
     steps:
       - name: Close Pull Request
-        id: closepullrequest
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_POLITE_ISLAND_0106B4103 }}
