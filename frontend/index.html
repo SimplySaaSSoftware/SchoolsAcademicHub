@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Academic Hub — Login</title>
+  <link rel="stylesheet" href="/css/main.css"/>
+</head>
+<body>
+<main class="login-page" role="main">
+
+  <div class="login-logo" id="login-logo" hidden>
+    <img id="school-logo" class="login-logo__img" alt="" width="80" height="80"
+         onerror="this.style.display='none';document.getElementById('login-logo-fallback').style.display=''"/>
+    <div id="login-logo-fallback" class="login-logo__mark" style="display:none">HUB</div>
+    <div id="school-name" class="login-logo__name"></div>
+  </div>
+
+  <div class="login-card" id="login-card" hidden>
+    <h1 class="login-card__title">Sign in</h1>
+    <div id="error-banner" class="error-banner" role="alert" hidden></div>
+
+    <!-- PIN form -->
+    <form id="pin-form" hidden novalidate data-form-type="other">
+      <div class="form-group">
+        <label class="form-label" for="pin-input">PIN</label>
+        <input id="pin-input" class="form-control pin-input" type="password"
+               inputmode="numeric" pattern="[0-9]*" maxlength="8"
+               placeholder="Enter your PIN" autocomplete="off"
+               data-lpignore="true" data-1p-ignore data-bwignore required/>
+      </div>
+      <button type="submit" class="btn btn--primary">Continue</button>
+    </form>
+
+    <!-- Email / password form -->
+    <form id="email-form" hidden novalidate>
+      <div class="form-group">
+        <label class="form-label" for="email-input">Email</label>
+        <input id="email-input" class="form-control" type="email" required autocomplete="email"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password-input">Password</label>
+        <input id="password-input" class="form-control" type="password" required autocomplete="current-password"/>
+      </div>
+      <button type="submit" class="btn btn--primary">Sign in</button>
+      <p style="text-align:center;margin-top:1rem;">
+        <a href="#" id="forgot-link" style="font-size:0.875rem;">Forgot password?</a>
+      </p>
+    </form>
+
+    <!-- Forgot password form -->
+    <form id="reset-form" hidden novalidate>
+      <p style="margin-bottom:1rem;font-size:0.9rem;color:var(--text-light);">Enter your email and we'll send a reset link.</p>
+      <div class="form-group">
+        <label class="form-label" for="reset-email">Email</label>
+        <input id="reset-email" class="form-control" type="email" required autocomplete="email"/>
+      </div>
+      <button type="submit" class="btn btn--primary">Send Reset Link</button>
+      <p style="text-align:center;margin-top:1rem;">
+        <a href="#" id="back-to-login" style="font-size:0.875rem;">Back to sign in</a>
+      </p>
+    </form>
+  </div>
+
+  <div id="loading-msg" style="text-align:center;padding:3rem;color:#888;">Loading&hellip;</div>
+  <p class="login-footer">&copy; <span id="year"></span> Academic Hub</p>
+
+</main>
+
+<script src="/js/config.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/api.js"></script>
+<script>
+document.getElementById('year').textContent = new Date().getFullYear();
+
+const errBanner = document.getElementById('error-banner');
+function showError(msg) { errBanner.textContent = msg; errBanner.hidden = false; }
+function hideError()    { errBanner.hidden = true; }
+
+(async () => {
+  if (!SCHOOL_SLUG) {
+    document.getElementById('loading-msg').textContent = 'No school specified in URL.';
+    return;
+  }
+
+  // Redirect if already logged in
+  const existing = getSession();
+  if (existing?.role) { redirectRole(existing.role); return; }
+
+  let school;
+  try {
+    school = await apiGet(`/school/config/${SCHOOL_SLUG}`);
+  } catch {
+    document.getElementById('loading-msg').textContent = 'School not found.';
+    return;
+  }
+
+  // Apply branding
+  document.title = `${school.name} — Sign in`;
+  document.documentElement.style.setProperty('--primary', school.primary_colour);
+  if (school.logo_url) document.getElementById('school-logo').src = school.logo_url;
+  else document.getElementById('login-logo-fallback').style.display = '';
+  document.getElementById('school-name').textContent = school.name;
+  document.getElementById('login-logo').hidden = false;
+
+  document.getElementById('loading-msg').hidden = true;
+  document.getElementById('login-card').hidden  = false;
+
+  if (school.auth_mode === 'pin') {
+    document.getElementById('pin-form').hidden = false;
+  } else {
+    document.getElementById('email-form').hidden = false;
+  }
+
+  // PIN submit
+  document.getElementById('pin-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideError();
+    const btn = e.target.querySelector('button');
+    btn.disabled = true; btn.textContent = 'Verifying…';
+    try {
+      const session = await login(SCHOOL_SLUG, { pin: document.getElementById('pin-input').value.trim() });
+      redirectRole(session.role);
+    } catch (err) {
+      showError(err.message);
+      btn.disabled = false; btn.textContent = 'Continue';
+      document.getElementById('pin-input').value = '';
+    }
+  });
+
+  // Email submit
+  document.getElementById('email-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideError();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true; btn.textContent = 'Signing in…';
+    try {
+      const session = await login(SCHOOL_SLUG, {
+        email:    document.getElementById('email-input').value.trim(),
+        password: document.getElementById('password-input').value,
+      });
+      redirectRole(session.role);
+    } catch (err) {
+      showError(err.message);
+      btn.disabled = false; btn.textContent = 'Sign in';
+    }
+  });
+
+  // Forgot password
+  document.getElementById('forgot-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('email-form').hidden = true;
+    document.getElementById('reset-form').hidden = false;
+    hideError();
+  });
+  document.getElementById('back-to-login').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('reset-form').hidden = true;
+    document.getElementById('email-form').hidden = false;
+    hideError();
+  });
+  document.getElementById('reset-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideError();
+    const btn = e.target.querySelector('button');
+    btn.disabled = true; btn.textContent = 'Sending…';
+    try {
+      await requestPasswordReset(SCHOOL_SLUG, document.getElementById('reset-email').value.trim());
+      errBanner.className = 'error-banner error-banner--success';
+      showError('Reset link sent — check your email.');
+    } catch (err) {
+      showError(err.message);
+    }
+    btn.disabled = false; btn.textContent = 'Send Reset Link';
+  });
+})();
+
+function redirectRole(role) {
+  const base = `/${SCHOOL_SLUG}`;
+  if (role === 'student')     window.location.href = `${base}/student`;
+  else if (role === 'teacher') window.location.href = `${base}/teacher`;
+  else if (role === 'admin')   window.location.href = `${base}/admin`;
+  else if (role === 'super_admin') window.location.href = '/superadmin';
+  else showError('Unknown role.');
+}
+</script>
+</body>
+</html>
