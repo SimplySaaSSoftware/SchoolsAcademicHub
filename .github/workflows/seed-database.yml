@@ -1,0 +1,72 @@
+name: Seed Database
+
+on:
+  workflow_dispatch:
+    inputs:
+      school_name:
+        description: 'School full name'
+        required: true
+        default: 'Humansdorp Primary School'
+      school_slug:
+        description: 'School URL slug (lowercase, hyphens)'
+        required: true
+        default: 'humansdorp-primary'
+      school_logo_url:
+        description: 'School logo URL (optional)'
+        required: false
+        default: 'https://humansdorpprimaryschool.co.za/wp-content/uploads/2021/03/HPS-Logo.png'
+      primary_colour:
+        description: 'Brand colour (hex)'
+        required: true
+        default: '#1a56a0'
+      auth_mode:
+        description: 'Staff auth mode'
+        required: true
+        default: 'pin'
+        type: choice
+        options: [pin, email]
+      student_auth:
+        description: 'Student auth mode'
+        required: true
+        default: 'grade_pin'
+        type: choice
+        options: [grade_pin, student_pin, student_email]
+      grades:
+        description: 'Grades (comma separated)'
+        required: true
+        default: '1,2,3,4,5,6,7'
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    name: Seed first school
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install postgres client
+        run: npm install postgres bcryptjs
+
+      - name: Run seed
+        env:
+          PGHOST:     ${{ secrets.PGHOST }}
+          PGPORT:     ${{ secrets.PGPORT }}
+          PGDATABASE: ${{ secrets.PGDATABASE }}
+          PGUSER:     ${{ secrets.PGUSER }}
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          SCHOOL_NAME:    ${{ github.event.inputs.school_name }}
+          SCHOOL_SLUG:    ${{ github.event.inputs.school_slug }}
+          SCHOOL_LOGO:    ${{ github.event.inputs.school_logo_url }}
+          PRIMARY_COLOUR: ${{ github.event.inputs.primary_colour }}
+          AUTH_MODE:      ${{ github.event.inputs.auth_mode }}
+          STUDENT_AUTH:   ${{ github.event.inputs.student_auth }}
+          GRADES:         ${{ github.event.inputs.grades }}
+        run: node seed.js
+
+      - name: Done
+        run: echo "Seed complete. Visit https://polite-island-0106b4103.7.azurestaticapps.net/${{ github.event.inputs.school_slug }} to test login."
