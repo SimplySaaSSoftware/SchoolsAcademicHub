@@ -10,6 +10,10 @@ async function apiFetch(path, options = {}) {
 
   if (res.status === 401) {
     clearSession();
+    // On superadmin page, don't redirect — let the caller show the login form
+    if (window.location.pathname.startsWith('/superadmin')) {
+      throw new Error('Session expired — please log in again');
+    }
     window.location.href = SCHOOL_SLUG ? `/${SCHOOL_SLUG}` : '/';
     throw new Error('Session expired');
   }

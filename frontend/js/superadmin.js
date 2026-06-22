@@ -22,12 +22,12 @@
   await loadSchools();
 
   // ── Login form ────────────────────────────────────────────────
-  function showLoginForm() {
+  function showLoginForm(prefillError = '') {
     main.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:center;min-height:60vh">
         <div class="login-card" style="max-width:380px;width:100%">
           <h1 class="login-card__title">Super Admin</h1>
-          <div id="login-error" class="error-banner" hidden></div>
+          <div id="login-error" class="error-banner"${prefillError ? '' : ' hidden'}>${prefillError ? esc(prefillError) : ''}</div>
           <form id="login-form" novalidate>
             <div class="form-group">
               <label class="form-label">Email</label>
@@ -80,7 +80,12 @@
     try {
       schools = await apiGet('/superadmin/schools');
     } catch (e) {
-      main.innerHTML = `<p style="color:red;padding:1rem">${e.message}</p>`; return;
+      if (e.message.includes('Session expired') || e.message.includes('401') || e.message.includes('auth')) {
+        showLoginForm(e.message);
+      } else {
+        main.innerHTML = `<p style="color:red;padding:1rem">${e.message}</p>`;
+      }
+      return;
     }
     renderSchools();
   }

@@ -12,11 +12,17 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     const body = await req.json() as { slug?: string; pin?: string; email?: string; password?: string };
 
     // Super admin
-    if (body.email === SUPER_EMAIL) {
+    if (body.email && body.email === SUPER_EMAIL) {
       if (!body.password) throw new HttpError(400, 'Password required');
+      if (!SUPER_HASH) throw new HttpError(500, 'Super admin not configured (missing SUPER_ADMIN_PASSWORD_HASH)');
       if (!(await verifyPassword(body.password, SUPER_HASH))) throw new HttpError(401, 'Invalid credentials');
+      if (!process.env.JWT_SECRET_SUPER) throw new HttpError(500, 'Super admin not configured (missing JWT_SECRET_SUPER)');
       const token = signToken({ school_id: 'system', user_id: 'super_admin', role: 'super_admin', name: 'Super Admin' });
       return { jsonBody: { token, role: 'super_admin', name: 'Super Admin' } };
+    }
+
+    if (body.email && !SUPER_EMAIL) {
+      throw new HttpError(500, 'Super admin not configured (missing SUPER_ADMIN_EMAIL)');
     }
 
     if (!body.slug) throw new HttpError(400, 'School slug required');
