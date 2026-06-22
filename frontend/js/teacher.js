@@ -1,0 +1,427 @@
+/* teacher.js — teacher/admin post management with editor, quiz builder, preview, stats */
+(async () => {
+  const session = requireSession(['teacher', 'admin', 'super_admin']);
+  if (!session) return;
+
+  const main   = document.querySelector('main');
+  const notify = document.getElementById('notification');
+
+  // Branding
+  let school = {};
+  try {
+    school = await apiGet(`/school/config/${SCHOOL_SLUG}`);
+    document.title = `${school.name} — Teacher`;
+    document.documentElement.style.setProperty('--primary', school.primary_colour ?? '#1a56a0');
+    document.getElementById('school-brand').textContent = school.name;
+  } catch {}
+
+  const gradeBadge = document.getElementById('teacher-grade');
+  if (gradeBadge && session.grade) gradeBadge.textContent = `Grade ${session.grade}`;
+  document.getElementById('btn-logout').addEventListener('click', logout);
+
+  function showNotify(msg, isError = false) {
+    notify.textContent = msg;
+    notify.className   = `notification${isError ? ' notification--error' : ''}`;
+    notify.hidden      = false;
+    setTimeout(() => { notify.hidden = true; }, 3500);
+  }
+
+  function esc(str) { return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // Cached ref data
+  let subjects = [], terms = [];
+  async function loadRefData() {
+    [subjects, terms] = await Promise.all([
+      apiGet(`/subjects?school_id=${SCHOOL_SLUG}`).catch(() => []),
+      apiGet(`/terms?school_id=${SCHOOL_SLUG}`).catch(() => []),
+    ]);
+  }
+
+  // ── Post list ───────────────────────────────────────────────
+  let allPosts = [];
+
+  async function loadPosts() {
+    main.innerHTML = '<p class="loading-text">Loading posts…</p>';
+    await loadRefData();
+    try {
+      allPosts = await apiGet(`/posts?school_id=${SCHOOL_SLUG}`);
+    } catch (e) {
+      main.innerHTML = `<p style="color:red;padding:1rem">${e.message}</p>`; return;
+    }
+    renderPostList();
+  }
+
+  function renderPostList() {
+    let html = `
+      <div class="page-toolbar">
+        <h1 class="page-title">Posts</h1>
+        <button id="btn-new-post" class="btn btn--primary">+ New Post</button>
+      </div>
+      <table class="table" id="posts-table">
+        <thead><tr>
+          <th>Title</th><th>Grade</th><th>Subject</th><th>Term</th>
+          <th>Status</th><th>Author</th><th></th>
+        </tr></thead>
+        <tbody>`;
+
+    if (!allPosts.length) {
+      html += '<tr><td colspan="7" style="text-align:center;color:#888;padding:2rem">No posts yet.</td></tr>';
+    }
+    allPosts.forEach((p) => {
+      html += `<tr>
+        <td><a href="#" class="link-action" data-action="view" data-id="${esc(p.id)}">${esc(p.title)}</a></td>
+        <td>${esc(String(p.grade))}</td>
+        <td>${esc(p.subject)}</td>
+        <td>${esc(p.term)}</td>
+        <td><span class="badge badge--${p.status === 'published' ? 'published' : 'draft'}">${esc(p.status)}</span></td>
+        <td>${esc(p.author_name ?? '')}</td>
+        <td class="table-actions">
+          <button class="btn btn--secondary btn--sm" data-action="preview" data-id="${esc(p.id)}">Preview</button>
+          <button class="btn btn--secondary btn--sm" data-action="edit"    data-id="${esc(p.id)}">Edit</button>
+          <button class="btn btn--secondary btn--sm" data-action="stats"   data-id="${esc(p.id)}">Stats</button>
+          <button class="btn btn--danger    btn--sm" data-action="delete"  data-id="${esc(p.id)}">Delete</button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    main.innerHTML = html;
+
+    document.getElementById('btn-new-post').addEventListener('click', () => showEditor(null));
+    main.querySelectorAll('[data-action]').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        const id   = el.dataset.id;
+        const post = allPosts.find((p) => p.id === id);
+        if (el.dataset.action === 'edit')    showEditor(post);
+        if (el.dataset.action === 'view')    showEditor(post);
+        if (el.dataset.action === 'preview') showPreview(post);
+        if (el.dataset.action === 'stats')   showStats(id);
+        if (el.dataset.action === 'delete')  deletePost(id);
+      });
+    });
+  }
+
+  // ── Delete ──────────────────────────────────────────────────
+  async function deletePost(id) {
+    const post = allPosts.find((p) => p.id === id);
+    if (!confirm(`Delete "${post?.title}"?`)) return;
+    try {
+      await apiDelete(`/posts/${id}`);
+      showNotify('Post deleted.');
+      allPosts = allPosts.filter((p) => p.id !== id);
+      renderPostList();
+    } catch (e) { showNotify(e.message, true); }
+  }
+
+  // ── Editor ──────────────────────────────────────────────────
+  let quillEditor = null;
+  let quizQuestions = [];
+
+  function showEditor(post) {
+    const isEdit   = !!post;
+    const canPublish = ['admin', 'super_admin'].includes(session.role) || isEdit;
+    quizQuestions  = post ? ((() => { try { return JSON.parse(post.quiz_json || '[]'); } catch { return []; } })()) : [];
+
+    const gradeOptions = (school.grades ?? [1,2,3,4,5,6,7]).map((g) =>
+      `<option value="${g}" ${post?.grade == g ? 'selected' : ''}>Grade ${g}</option>`).join('');
+    const subjectOptions = subjects.map((s) =>
+      `<option value="${esc(s)}" ${post?.subject === s ? 'selected' : ''}>${esc(s)}</option>`).join('');
+    const termOptions = terms.map((t) =>
+      `<option value="${esc(t)}" ${post?.term === t ? 'selected' : ''}>${esc(t)}</option>`).join('');
+
+    main.innerHTML = `
+      <div class="page-toolbar">
+        <button id="btn-back-list" class="btn btn--ghost btn--sm">&larr; Back</button>
+        <h1 class="page-title">${isEdit ? 'Edit Post' : 'New Post'}</h1>
+        <div style="display:flex;gap:.5rem">
+          <button id="btn-preview-editor" class="btn btn--secondary">Preview</button>
+          <button id="btn-save-draft"    class="btn btn--secondary">Save Draft</button>
+          <button id="btn-publish"       class="btn btn--primary">${isEdit && post.status === 'published' ? 'Update' : 'Publish'}</button>
+        </div>
+      </div>
+      <div class="editor-layout">
+        <div class="editor-left">
+          <div class="form-group">
+            <label class="form-label">Title *</label>
+            <input id="f-title" class="form-control" value="${esc(post?.title ?? '')}" placeholder="Post title" required/>
+          </div>
+          <div class="editor-row-3">
+            <div class="form-group">
+              <label class="form-label">Grade *</label>
+              <select id="f-grade" class="form-control">${gradeOptions}</select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Subject *</label>
+              <select id="f-subject" class="form-control"><option value="">Select…</option>${subjectOptions}</select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Term *</label>
+              <select id="f-term" class="form-control"><option value="">Select…</option>${termOptions}</select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Content</label>
+            <div id="quill-editor" style="min-height:280px;background:#fff"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Attachments (Google Drive links)</label>
+            <div id="attachments-list"></div>
+            <button id="btn-add-attachment" class="btn btn--secondary btn--sm" style="margin-top:.5rem">+ Add Link</button>
+          </div>
+        </div>
+        <div class="editor-right">
+          <div class="quiz-builder">
+            <div class="quiz-builder__header">
+              <h3 class="quiz-builder__title">Quiz</h3>
+              <button id="btn-add-question" class="btn btn--secondary btn--sm">+ Question</button>
+            </div>
+            <div id="quiz-questions"></div>
+          </div>
+        </div>
+      </div>`;
+
+    document.getElementById('btn-back-list').addEventListener('click', loadPosts);
+    document.getElementById('btn-preview-editor').addEventListener('click', () => showPreview(buildPostFromForm(post)));
+    document.getElementById('btn-save-draft').addEventListener('click', () => savePost(post, 'draft'));
+    document.getElementById('btn-publish').addEventListener('click', () => savePost(post, 'published'));
+    document.getElementById('btn-add-question').addEventListener('click', addQuestion);
+    document.getElementById('btn-add-attachment').addEventListener('click', addAttachment);
+
+    // Init Quill (load from CDN if not already loaded)
+    loadQuill(() => {
+      quillEditor = new Quill('#quill-editor', {
+        theme: 'snow',
+        modules: { toolbar: [
+          [{ header: [1, 2, 3, false] }],
+          ['bold', 'italic', 'underline'],
+          [{ list: 'ordered' }, { list: 'bullet' }],
+          ['link', 'image'],
+          ['clean'],
+        ]},
+      });
+      if (post?.content_html) quillEditor.clipboard.dangerouslyPasteHTML(post.content_html);
+    });
+
+    renderAttachments(post ? ((() => { try { return JSON.parse(post.attachments_json || '[]'); } catch { return []; } })()) : []);
+    renderQuizBuilder();
+  }
+
+  function buildPostFromForm(existingPost) {
+    return {
+      ...(existingPost ?? {}),
+      title:   document.getElementById('f-title')?.value.trim(),
+      grade:   Number(document.getElementById('f-grade')?.value),
+      subject: document.getElementById('f-subject')?.value,
+      term:    document.getElementById('f-term')?.value,
+      content_html:     quillEditor ? quillEditor.root.innerHTML : (existingPost?.content_html ?? ''),
+      attachments_json: JSON.stringify(getAttachments()),
+      quiz_json:        JSON.stringify(quizQuestions),
+    };
+  }
+
+  async function savePost(existingPost, status) {
+    const body = buildPostFromForm(existingPost);
+    if (!body.title)   { showNotify('Title is required.', true); return; }
+    if (!body.subject) { showNotify('Subject is required.', true); return; }
+    if (!body.term)    { showNotify('Term is required.', true); return; }
+
+    body.status = status;
+    const btn = document.getElementById(status === 'draft' ? 'btn-save-draft' : 'btn-publish');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+    try {
+      if (existingPost?.id) {
+        await apiPut(`/posts/${existingPost.id}`, body);
+      } else {
+        await apiPost('/posts', body);
+      }
+      showNotify(status === 'published' ? 'Post published!' : 'Draft saved.');
+      await loadPosts();
+    } catch (e) {
+      showNotify(e.message, true);
+      if (btn) { btn.disabled = false; btn.textContent = status === 'draft' ? 'Save Draft' : 'Publish'; }
+    }
+  }
+
+  // ── Attachments ─────────────────────────────────────────────
+  function getAttachments() {
+    return [...document.querySelectorAll('#attachments-list .attachment-row input')].map((i) => i.value.trim()).filter(Boolean);
+  }
+  function renderAttachments(links) {
+    const list = document.getElementById('attachments-list');
+    list.innerHTML = '';
+    links.forEach((url) => addAttachmentRow(url));
+  }
+  function addAttachment() { addAttachmentRow(''); }
+  function addAttachmentRow(url) {
+    const list = document.getElementById('attachments-list');
+    const row  = document.createElement('div');
+    row.className = 'attachment-row';
+    row.style.cssText = 'display:flex;gap:.5rem;margin-bottom:.4rem';
+    row.innerHTML = `<input class="form-control" type="url" value="${esc(url)}" placeholder="https://drive.google.com/…"/>
+      <button class="btn btn--danger btn--sm" type="button">&times;</button>`;
+    row.querySelector('button').addEventListener('click', () => row.remove());
+    list.appendChild(row);
+  }
+
+  // ── Quiz builder ─────────────────────────────────────────────
+  function renderQuizBuilder() {
+    const container = document.getElementById('quiz-questions');
+    container.innerHTML = '';
+    if (!quizQuestions.length) {
+      container.innerHTML = '<p style="color:#888;font-size:.85rem;text-align:center">No questions yet.</p>';
+      return;
+    }
+    quizQuestions.forEach((q, i) => renderQuestion(q, i));
+  }
+
+  function renderQuestion(q, idx) {
+    const container = document.getElementById('quiz-questions');
+    const div       = document.createElement('div');
+    div.className   = 'quiz-q-card';
+    div.dataset.idx = idx;
+    div.innerHTML   = `
+      <div class="quiz-q-card__header">
+        <span class="quiz-q-card__num">Q${idx + 1}</span>
+        <button class="btn btn--danger btn--sm quiz-q-del" data-idx="${idx}">&times;</button>
+      </div>
+      <input class="form-control quiz-q-text" placeholder="Question text" value="${esc(q.question ?? '')}"/>
+      <div class="quiz-q-options">
+        ${(q.options || ['', '', '', '']).map((opt, oi) => `
+          <div class="quiz-opt-row">
+            <input type="radio" name="correct-${idx}" value="${oi}" ${q.correct_index === oi ? 'checked' : ''}/>
+            <input class="form-control" type="text" value="${esc(opt)}" placeholder="Option ${oi + 1}"/>
+          </div>`).join('')}
+      </div>
+      <p style="font-size:.75rem;color:#888;margin-top:.25rem">Select the correct answer with the radio button.</p>`;
+
+    // Wire up live updates
+    div.querySelector('.quiz-q-text').addEventListener('input', (e) => { quizQuestions[idx].question = e.target.value; });
+    div.querySelectorAll('.quiz-opt-row').forEach((row, oi) => {
+      row.querySelector('input[type="text"]').addEventListener('input', (e) => {
+        if (!quizQuestions[idx].options) quizQuestions[idx].options = [];
+        quizQuestions[idx].options[oi] = e.target.value;
+      });
+      row.querySelector('input[type="radio"]').addEventListener('change', () => { quizQuestions[idx].correct_index = oi; });
+    });
+    div.querySelector('.quiz-q-del').addEventListener('click', () => {
+      quizQuestions.splice(idx, 1);
+      renderQuizBuilder();
+    });
+    container.appendChild(div);
+  }
+
+  function addQuestion() {
+    quizQuestions.push({ question: '', options: ['', '', '', ''], correct_index: 0 });
+    renderQuizBuilder();
+    document.querySelector(`[data-idx="${quizQuestions.length - 1}"] .quiz-q-text`)?.focus();
+  }
+
+  // ── Preview ─────────────────────────────────────────────────
+  function showPreview(post) {
+    const questions = (() => { try { return JSON.parse(post?.quiz_json || '[]'); } catch { return []; } })();
+    const links     = (() => { try { return JSON.parse(post?.attachments_json || '[]'); } catch { return []; } })();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal modal--wide">
+        <div class="modal__header">
+          <h2>${esc(post?.title ?? 'Preview')}</h2>
+          <span class="badge badge--draft" style="font-size:.7rem">Student view</span>
+          <button id="btn-close-preview" class="btn btn--ghost btn--sm" style="margin-left:auto">&times; Close</button>
+        </div>
+        <div class="modal__body">
+          <p class="post-view__meta">Grade ${esc(String(post?.grade ?? ''))} &bull; ${esc(post?.subject ?? '')} &bull; Term ${esc(post?.term ?? '')}</p>
+          <div class="post-content">${post?.content_html ?? ''}</div>
+          ${links.length ? `<div class="attachments"><h4>Attachments</h4>${links.map((l) => `<a href="${esc(l)}" target="_blank" rel="noopener">${esc(l)}</a>`).join('<br>')}</div>` : ''}
+          ${questions.length ? `<div class="quiz-card"><h3 class="quiz-title">Quiz</h3>${questions.map((q, i) => `
+            <div class="quiz-question"><p class="quiz-question__text"><strong>Q${i+1}.</strong> ${esc(q.question)}</p>
+            <div class="quiz-options">${(q.options||[]).map((o, oi) => `<label class="quiz-option"><input type="radio" name="pq${i}" value="${oi}"/><span>${esc(o)}</span></label>`).join('')}</div>
+            </div>`).join('')}
+            <button class="btn btn--primary" style="margin-top:1rem" disabled>Submit Quiz</button>
+          </div>` : ''}
+        </div>
+      </div>`;
+
+    document.body.appendChild(overlay);
+    overlay.querySelector('#btn-close-preview').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  }
+
+  // ── Stats panel ─────────────────────────────────────────────
+  async function showStats(id) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal modal--wide">
+        <div class="modal__header">
+          <h2>Post Stats</h2>
+          <button id="btn-close-stats" class="btn btn--ghost btn--sm" style="margin-left:auto">&times; Close</button>
+        </div>
+        <div class="modal__body" id="stats-body"><p class="loading-text">Loading…</p></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#btn-close-stats').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+    try {
+      const [stats, viewers, attempts] = await Promise.all([
+        apiGet(`/posts/${id}/stats`),
+        apiGet(`/posts/${id}/viewers`),
+        apiGet(`/posts/${id}/quiz-results`),
+      ]);
+
+      const body = document.getElementById('stats-body');
+      body.innerHTML = `
+        <div class="stats-summary">
+          <div class="stat-card"><span class="stat-card__value">${stats.unique_viewers ?? 0}</span><span class="stat-card__label">Unique Viewers</span></div>
+          <div class="stat-card"><span class="stat-card__value">${stats.quiz_attempts ?? 0}</span><span class="stat-card__label">Quiz Attempts</span></div>
+          ${stats.avg_score != null ? `<div class="stat-card"><span class="stat-card__value">${stats.avg_score}%</span><span class="stat-card__label">Avg Score</span></div>` : ''}
+          ${stats.pass_rate != null ? `<div class="stat-card"><span class="stat-card__value">${stats.pass_rate}%</span><span class="stat-card__label">Pass Rate</span></div>` : ''}
+        </div>
+        <div style="display:flex;gap:.5rem;margin:1rem 0">
+          <button id="btn-export-viewers" class="btn btn--secondary btn--sm">Export Viewers (Excel)</button>
+          ${attempts.length ? `<button id="btn-export-quiz" class="btn btn--secondary btn--sm">Export Quiz Results (Excel)</button>` : ''}
+        </div>
+        ${viewers.length ? `
+          <h3 style="margin-bottom:.5rem">Viewers</h3>
+          <table class="table table--sm">
+            <thead><tr><th>Student</th><th>Grade</th><th>Opened At</th></tr></thead>
+            <tbody>${viewers.map((v) => `<tr><td>${esc(v.student_name)}</td><td>${esc(String(v.grade))}</td><td>${new Date(v.timestamp).toLocaleString()}</td></tr>`).join('')}</tbody>
+          </table>` : '<p style="color:#888">No views tracked yet.</p>'}
+        ${attempts.length ? `
+          <h3 style="margin:1rem 0 .5rem">Quiz Results</h3>
+          <table class="table table--sm">
+            <thead><tr><th>Student</th><th>Grade</th><th>Score</th><th>%</th><th>Passed</th><th>Attempt</th></tr></thead>
+            <tbody>${attempts.map((a) => `<tr>
+              <td>${esc(a.student_name)}</td><td>${esc(String(a.grade))}</td>
+              <td>${a.score}/${a.total}</td><td>${a.percentage}%</td>
+              <td>${a.passed ? '✓' : '✗'}</td><td>#${a.attempt_number}</td>
+            </tr>`).join('')}</tbody>
+          </table>` : ''}`;
+
+      document.getElementById('btn-export-viewers')?.addEventListener('click', () =>
+        downloadExport(`/admin/export/post/${id}/viewers`, `viewers-${id}.xlsx`));
+      document.getElementById('btn-export-quiz')?.addEventListener('click', () =>
+        downloadExport(`/admin/export/post/${id}/quiz`, `quiz-${id}.xlsx`));
+    } catch (e) {
+      document.getElementById('stats-body').innerHTML = `<p style="color:red">${e.message}</p>`;
+    }
+  }
+
+  // ── Quill loader ─────────────────────────────────────────────
+  function loadQuill(cb) {
+    if (window.Quill) { cb(); return; }
+    const link  = document.createElement('link');
+    link.rel    = 'stylesheet';
+    link.href   = 'https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css';
+    document.head.appendChild(link);
+    const script = document.createElement('script');
+    script.src   = 'https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js';
+    script.onload = cb;
+    document.head.appendChild(script);
+  }
+
+  await loadPosts();
+})();

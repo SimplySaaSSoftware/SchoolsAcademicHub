@@ -1,0 +1,2 @@
+/* Editor additional styles — Quill overrides already in main.css */
+#quill-editor { border: 1px solid var(--border); border-top: none; min-height: 280px; }
