@@ -534,6 +534,14 @@
     }
   }
 
+  // ── Helpers ──────────────────────────────────────────────────
+  function sanitize(html) {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    div.querySelectorAll('script,iframe,object,embed').forEach((el) => el.remove());
+    return div.innerHTML;
+  }
+
   // ── Quill loader ─────────────────────────────────────────────
   function loadQuill(cb) {
     if (window.Quill) { cb(); return; }
