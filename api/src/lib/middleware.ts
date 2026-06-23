@@ -43,6 +43,7 @@ export function errorResponse(err: unknown) {
   if (err instanceof HttpError) {
     return { status: err.status, jsonBody: { error: err.message } };
   }
-  console.error(err);
-  return { status: 500, jsonBody: { error: 'Internal server error' } };
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error('[500]', msg, err);
+  return { status: 500, jsonBody: { error: msg } };
 }
