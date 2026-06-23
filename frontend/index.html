@@ -83,9 +83,15 @@ function hideError()    { errBanner.hidden = true; }
     return;
   }
 
-  // Redirect if already logged in
+  // Only auto-redirect from the login page itself, not if index.html is served at another URL
+  const loginPath = `/${SCHOOL_SLUG}`;
+  const onLoginPage = window.location.pathname === loginPath || window.location.pathname === loginPath + '/';
   const existing = getSession();
-  if (existing?.role) { redirectRole(existing.role); return; }
+  if (existing?.token && existing?.role) {
+    if (onLoginPage) { redirectRole(existing.role); return; }
+    // index.html served at wrong URL (SWA routing miss) — clear stale session to break any loop
+    clearSession();
+  }
 
   let school;
   try {
