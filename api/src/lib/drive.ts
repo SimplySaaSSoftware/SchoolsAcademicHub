@@ -125,7 +125,8 @@ export async function proxyChunk(
     const data = await res.json() as { id: string };
     return { done: true, driveId: data.id };
   }
-  throw new Error(`Chunk upload failed: ${res.status}`);
+  const body = await res.text().catch(() => '');
+  throw new Error(`Chunk upload failed: ${res.status} — ${body}`);
 }
 
 export async function setPublicReadable(driveId: string): Promise<void> {
