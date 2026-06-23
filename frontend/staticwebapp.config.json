@@ -1,15 +1,15 @@
 {
   "routes": [
-    { "route": "/api/*", "allowedRoles": ["anonymous"] },
-    { "route": "/superadmin",     "rewrite": "/superadmin.html" },
-    { "route": "/superadmin/*",   "rewrite": "/superadmin.html" },
-    { "route": "/reset-password", "rewrite": "/reset-password.html" },
-    { "route": "/{school}/student",   "rewrite": "/student.html" },
-    { "route": "/{school}/student/*", "rewrite": "/student.html" },
-    { "route": "/{school}/teacher",   "rewrite": "/teacher.html" },
-    { "route": "/{school}/teacher/*", "rewrite": "/teacher.html" },
-    { "route": "/{school}/admin",     "rewrite": "/admin.html" },
-    { "route": "/{school}/admin/*",   "rewrite": "/admin.html" }
+    { "route": "/api/*",         "allowedRoles": ["anonymous"] },
+    { "route": "/superadmin",    "rewrite": "/superadmin.html" },
+    { "route": "/superadmin/*",  "rewrite": "/superadmin.html" },
+    { "route": "/reset-password","rewrite": "/reset-password.html" },
+    { "route": "/admin",         "rewrite": "/admin.html" },
+    { "route": "/admin/*",       "rewrite": "/admin.html" },
+    { "route": "/teacher",       "rewrite": "/teacher.html" },
+    { "route": "/teacher/*",     "rewrite": "/teacher.html" },
+    { "route": "/student",       "rewrite": "/student.html" },
+    { "route": "/student/*",     "rewrite": "/student.html" }
   ],
   "globalHeaders": {
     "Cache-Control": "no-cache, must-revalidate"

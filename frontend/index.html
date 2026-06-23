@@ -83,14 +83,13 @@ function hideError()    { errBanner.hidden = true; }
     return;
   }
 
-  // Only auto-redirect from the login page itself, not if index.html is served at another URL
-  const loginPath = `/${SCHOOL_SLUG}`;
-  const onLoginPage = window.location.pathname === loginPath || window.location.pathname === loginPath + '/';
+  // Only auto-redirect when on the login page (/{school}), not if index.html is served elsewhere
+  const _firstSeg = window.location.pathname.split('/').filter(Boolean)[0] ?? '';
+  const onLoginPage = !['admin','teacher','student','superadmin'].includes(_firstSeg);
   const existing = getSession();
   if (existing?.token && existing?.role) {
     if (onLoginPage) { redirectRole(existing.role); return; }
-    // index.html served at wrong URL (SWA routing miss) — clear stale session to break any loop
-    clearSession();
+    clearSession(); // SWA routing miss — clear session to avoid loop
   }
 
   let school;
@@ -182,10 +181,9 @@ function hideError()    { errBanner.hidden = true; }
 })();
 
 function redirectRole(role) {
-  const base = `/${SCHOOL_SLUG}`;
-  if (role === 'student')     window.location.href = `${base}/student`;
-  else if (role === 'teacher') window.location.href = `${base}/teacher`;
-  else if (role === 'admin')   window.location.href = `${base}/admin`;
+  if (role === 'student')      window.location.href = `/student/${SCHOOL_SLUG}`;
+  else if (role === 'teacher') window.location.href = `/teacher/${SCHOOL_SLUG}`;
+  else if (role === 'admin')   window.location.href = `/admin/${SCHOOL_SLUG}`;
   else if (role === 'super_admin') window.location.href = '/superadmin';
   else showError('Unknown role.');
 }
