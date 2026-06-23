@@ -92,8 +92,8 @@
         e.preventDefault();
         const id   = el.dataset.id;
         const post = allPosts.find((p) => p.id === id);
-        if (el.dataset.action === 'edit')    showEditor(post);
-        if (el.dataset.action === 'view')    showEditor(post);
+        if (el.dataset.action === 'edit')    apiGet(`/posts/${id}`).then(showEditor).catch(() => showEditor(post));
+        if (el.dataset.action === 'view')    apiGet(`/posts/${id}`).then(showEditor).catch(() => showEditor(post));
         if (el.dataset.action === 'preview') showPreview(post);
         if (el.dataset.action === 'stats')   showStats(id);
         if (el.dataset.action === 'delete')  deletePost(id);
