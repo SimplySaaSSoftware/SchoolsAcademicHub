@@ -11,6 +11,9 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     const { filename, mimeType, fileSize, grade, subject } = await req.json() as {
       filename: string; mimeType: string; fileSize: number; grade: number; subject: string;
     };
+    if (!process.env.DRIVE_ROOT_FOLDER_ID) throw new HttpError(500, 'DRIVE_ROOT_FOLDER_ID env var not set');
+    if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) throw new HttpError(500, 'GOOGLE_SERVICE_ACCOUNT_JSON env var not set');
+
     if (!filename || !mimeType || !fileSize || !grade || !subject) {
       throw new HttpError(400, 'filename, mimeType, fileSize, grade, subject required');
     }
