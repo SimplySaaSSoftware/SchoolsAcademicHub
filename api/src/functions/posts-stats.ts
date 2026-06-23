@@ -1,12 +1,13 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { sql, getItemById } from '../lib/db';
-import { requireAuth, requireRole, errorResponse, HttpError } from '../lib/middleware';
+import { requireAuth, requireRole, errorResponse, HttpError, effectiveSchoolId } from '../lib/middleware';
 import { PostDoc, QuizAttemptDoc } from '../types';
 
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
   try {
     const jwt = requireAuth(req);
     requireRole(jwt, ['teacher', 'admin', 'super_admin']);
+    const schoolId = effectiveSchoolId(req, jwt);
 
     const id   = req.params.id;
     const post = await getItemById<PostDoc>(id);
@@ -15,11 +16,11 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     const [viewerRows, attemptRows] = await Promise.all([
       sql<{ student_id: string }[]>`
         SELECT data->>'student_id' AS student_id FROM items
-        WHERE school_id = ${jwt.school_id} AND type = 'activity'
+        WHERE school_id = ${schoolId} AND type = 'activity'
           AND data->>'post_id' = ${id}`,
       sql<{ data: QuizAttemptDoc }[]>`
         SELECT data FROM items
-        WHERE school_id = ${jwt.school_id} AND type = 'quiz_attempt'
+        WHERE school_id = ${schoolId} AND type = 'quiz_attempt'
           AND data->>'post_id' = ${id}`,
     ]);
 

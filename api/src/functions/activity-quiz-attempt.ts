@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { sql, insertItem } from '../lib/db';
-import { requireAuth, requireRole, errorResponse, HttpError } from '../lib/middleware';
+import { requireAuth, requireRole, errorResponse, effectiveSchoolId, HttpError } from '../lib/middleware';
 import { QuizAttemptDoc } from '../types';
 import { randomUUID } from 'crypto';
 
@@ -8,6 +8,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
   try {
     const jwt = requireAuth(req);
     requireRole(jwt, ['student']);
+    const schoolId = effectiveSchoolId(req, jwt);
 
     const body = await req.json() as {
       post_id: string; post_title: string; subject: string; term: string;
@@ -21,7 +22,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
 
     const countRows = await sql<{ count: string }[]>`
       SELECT COUNT(*)::text AS count FROM items
-      WHERE school_id = ${jwt.school_id} AND type = 'quiz_attempt'
+      WHERE school_id = ${schoolId} AND type = 'quiz_attempt'
         AND data->>'post_id' = ${body.post_id}
         AND data->>'student_id' = ${jwt.user_id}`;
 
@@ -31,7 +32,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
 
     const doc: QuizAttemptDoc = {
       id:                 randomUUID(),
-      school_id:          jwt.school_id,
+      school_id:          schoolId,
       type:               'quiz_attempt',
       student_id:         jwt.user_id,
       student_name:       jwt.name ?? jwt.user_id,

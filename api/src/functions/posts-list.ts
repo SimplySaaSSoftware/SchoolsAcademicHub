@@ -1,11 +1,11 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { sql } from '../lib/db';
-import { requireAuth, requireSchoolMatch, errorResponse } from '../lib/middleware';
+import { requireAuth, requireSchoolMatch, errorResponse, effectiveSchoolId } from '../lib/middleware';
 
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
   try {
     const jwt       = requireAuth(req);
-    const school_id = req.query.get('school_id') ?? jwt.school_id;
+    const school_id = req.query.get('school_id') ?? effectiveSchoolId(req, jwt);
     requireSchoolMatch(jwt, school_id);
 
     const grade   = req.query.get('grade');

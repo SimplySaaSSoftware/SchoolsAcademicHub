@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { insertItem } from '../lib/db';
-import { requireAuth, requireRole, errorResponse, HttpError } from '../lib/middleware';
+import { requireAuth, requireRole, errorResponse, HttpError, effectiveSchoolId } from '../lib/middleware';
 import { PostDoc } from '../types';
 import { randomUUID } from 'crypto';
 
@@ -8,6 +8,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
   try {
     const jwt  = requireAuth(req);
     requireRole(jwt, ['teacher', 'admin', 'super_admin']);
+    const schoolId = effectiveSchoolId(req, jwt);
 
     const body = await req.json() as Partial<PostDoc> & { status?: 'draft' | 'published' };
     if (!body.title || !body.grade || !body.subject || !body.term) {
@@ -19,7 +20,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
 
     const post: PostDoc = {
       id:               randomUUID(),
-      school_id:        jwt.school_id,
+      school_id:        schoolId,
       type:             'post',
       title:            body.title,
       grade:            Number(body.grade),

@@ -1,11 +1,12 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { ensureFolderPath, createUploadSession } from '../lib/drive';
-import { requireAuth, requireRole, errorResponse, HttpError } from '../lib/middleware';
+import { requireAuth, requireRole, errorResponse, effectiveSchoolId, HttpError } from '../lib/middleware';
 
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
   try {
     const jwt  = requireAuth(req);
     requireRole(jwt, ['teacher', 'admin', 'super_admin']);
+    const schoolId = effectiveSchoolId(req, jwt);
 
     const { filename, mimeType, fileSize, grade, subject } = await req.json() as {
       filename: string; mimeType: string; fileSize: number; grade: number; subject: string;
@@ -14,7 +15,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       throw new HttpError(400, 'filename, mimeType, fileSize, grade, subject required');
     }
 
-    const folderId  = await ensureFolderPath(jwt.school_id, Number(grade), subject);
+    const folderId  = await ensureFolderPath(schoolId, Number(grade), subject);
     const uploadUrl = await createUploadSession(filename, mimeType, fileSize, folderId);
 
     return { jsonBody: { uploadUrl } };

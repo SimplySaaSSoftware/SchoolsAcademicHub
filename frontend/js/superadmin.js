@@ -117,6 +117,7 @@
         <td>${s.active ? '<span class="badge badge--published">Active</span>' : '<span class="badge badge--draft">Inactive</span>'}</td>
         <td class="table-actions">
           <button class="btn btn--secondary btn--sm" data-action="edit" data-id="${esc(s.id)}">Edit</button>
+          <a class="btn btn--primary btn--sm" href="/admin/${esc(s.slug)}">Manage</a>
           <a class="btn btn--ghost btn--sm" href="/${esc(s.slug)}" target="_blank" rel="noopener" style="color:var(--primary);border-color:var(--primary)">Login &nearr;</a>
         </td>
       </tr>`;

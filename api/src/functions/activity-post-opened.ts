@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { insertItem } from '../lib/db';
-import { requireAuth, requireRole, errorResponse, HttpError } from '../lib/middleware';
+import { requireAuth, requireRole, errorResponse, effectiveSchoolId, HttpError } from '../lib/middleware';
 import { ActivityDoc } from '../types';
 import { randomUUID } from 'crypto';
 
@@ -8,6 +8,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
   try {
     const jwt = requireAuth(req);
     requireRole(jwt, ['student']);
+    const schoolId = effectiveSchoolId(req, jwt);
 
     const { post_id, post_title, subject, term } = await req.json() as {
       post_id: string; post_title: string; subject: string; term: string;
@@ -17,7 +18,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     const now = new Date().toISOString();
     const doc: ActivityDoc = {
       id:           randomUUID(),
-      school_id:    jwt.school_id,
+      school_id:    schoolId,
       type:         'activity',
       event:        'post_opened',
       student_id:   jwt.user_id,

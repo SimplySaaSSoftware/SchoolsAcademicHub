@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { sql, insertItem, deleteItemById } from '../lib/db';
-import { requireAuth, requireRole, errorResponse, HttpError } from '../lib/middleware';
+import { requireAuth, requireRole, errorResponse, HttpError, effectiveSchoolId } from '../lib/middleware';
 import { hashPin } from '../lib/auth';
 import { PinDoc } from '../types';
 import { randomUUID } from 'crypto';
@@ -9,10 +9,11 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
   try {
     const jwt = requireAuth(req);
     requireRole(jwt, ['admin', 'super_admin']);
+    const schoolId = effectiveSchoolId(req, jwt);
 
     if (req.method === 'GET') {
       const rows = await sql<{ data: PinDoc }[]>`
-        SELECT data FROM items WHERE school_id = ${jwt.school_id} AND type = 'pin'`;
+        SELECT data FROM items WHERE school_id = ${schoolId} AND type = 'pin'`;
       return { jsonBody: rows.map(({ data: p }) => ({ id: p.id, role: p.role, grade: p.grade, label: p.label })) };
     }
 
@@ -23,7 +24,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
 
       const doc: PinDoc = {
         id:         randomUUID(),
-        school_id:  jwt.school_id,
+        school_id:  schoolId,
         type:       'pin',
         role:       body.role as PinDoc['role'],
         grade:      body.grade ? Number(body.grade) : undefined,

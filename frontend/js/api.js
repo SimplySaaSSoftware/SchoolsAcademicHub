@@ -1,8 +1,13 @@
 async function apiFetch(path, options = {}) {
   const token = getToken();
+  const session = getSession();
+  // When super_admin operates on a school admin page, scope API calls to that school
+  const schoolHeader = (session?.role === 'super_admin' && SCHOOL_SLUG)
+    ? { 'X-School-Id': SCHOOL_SLUG } : {};
   const headers = {
     'Content-Type': 'application/json',
     ...(token ? { 'X-Auth-Token': token } : {}),
+    ...schoolHeader,
     ...(options.headers ?? {}),
   };
 

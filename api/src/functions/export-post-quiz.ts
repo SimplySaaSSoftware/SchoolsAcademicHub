@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { sql, getItemById, getSchoolBySlug } from '../lib/db';
-import { requireAuth, requireRole, errorResponse, HttpError } from '../lib/middleware';
+import { requireAuth, requireRole, errorResponse, HttpError, effectiveSchoolId } from '../lib/middleware';
 import { buildQuizExport } from '../lib/excel';
 import { PostDoc, QuizAttemptDoc } from '../types';
 
@@ -8,16 +8,17 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
   try {
     const jwt  = requireAuth(req);
     requireRole(jwt, ['teacher', 'admin', 'super_admin']);
+    const schoolId = effectiveSchoolId(req, jwt);
 
     const id   = req.params.id;
     const post = await getItemById<PostDoc>(id);
     if (!post) throw new HttpError(404, 'Post not found');
 
     const [school, attemptRows] = await Promise.all([
-      getSchoolBySlug(jwt.school_id),
+      getSchoolBySlug(schoolId),
       sql<{ data: QuizAttemptDoc }[]>`
         SELECT data FROM items
-        WHERE school_id = ${jwt.school_id} AND type = 'quiz_attempt'
+        WHERE school_id = ${schoolId} AND type = 'quiz_attempt'
           AND data->>'post_id' = ${id}
         ORDER BY data->>'student_name' ASC, (data->>'attempt_number')::int ASC`,
     ]);

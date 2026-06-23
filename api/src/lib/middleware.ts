@@ -29,6 +29,16 @@ export function requireSchoolMatch(payload: JwtPayload, school_id: string): void
   if (payload.school_id !== school_id) throw new HttpError(403, 'School mismatch');
 }
 
+// When super_admin calls from a school admin page, they pass X-School-Id to
+// scope queries to a specific school. Regular users always use their own school_id.
+export function effectiveSchoolId(req: HttpRequest, jwt: JwtPayload): string {
+  if (jwt.role === 'super_admin') {
+    const override = req.headers.get('x-school-id');
+    if (override) return override;
+  }
+  return jwt.school_id;
+}
+
 export function errorResponse(err: unknown) {
   if (err instanceof HttpError) {
     return { status: err.status, jsonBody: { error: err.message } };
