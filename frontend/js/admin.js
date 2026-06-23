@@ -136,7 +136,9 @@
         <td>${u.active ? 'Yes' : 'No'}</td>
         <td class="table-actions">
           <button class="btn btn--secondary btn--sm" data-action="edit-user" data-id="${esc(u.id)}">Edit</button>
-          <button class="btn btn--danger btn--sm"    data-action="del-user"  data-id="${esc(u.id)}">Deactivate</button>
+          ${u.active
+            ? `<button class="btn btn--danger btn--sm" data-action="deact-user" data-id="${esc(u.id)}">Deactivate</button>`
+            : `<button class="btn btn--danger btn--sm" data-action="del-user" data-id="${esc(u.id)}">Delete</button>`}
         </td>
       </tr>`;
     });
@@ -147,10 +149,17 @@
     tabEl().querySelectorAll('[data-action="edit-user"]').forEach((b) => {
       b.addEventListener('click', () => showUserModal(users.find((u) => u.id === b.dataset.id), users));
     });
-    tabEl().querySelectorAll('[data-action="del-user"]').forEach((b) => {
+    tabEl().querySelectorAll('[data-action="deact-user"]').forEach((b) => {
       b.addEventListener('click', async () => {
         if (!confirm('Deactivate this user?')) return;
         try { await apiDelete(`/users/${b.dataset.id}`); showNotify('User deactivated.'); renderUsers(); }
+        catch (e) { showNotify(e.message, true); }
+      });
+    });
+    tabEl().querySelectorAll('[data-action="del-user"]').forEach((b) => {
+      b.addEventListener('click', async () => {
+        if (!confirm('Permanently delete this user? This cannot be undone.')) return;
+        try { await apiDelete(`/users/${b.dataset.id}?hard=true`); showNotify('User deleted.'); renderUsers(); }
         catch (e) { showNotify(e.message, true); }
       });
     });

@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { sql, insertItem, updateItemById } from '../lib/db';
+import { sql, insertItem, updateItemById, deleteItemById } from '../lib/db';
 import { requireAuth, requireRole, errorResponse, HttpError } from '../lib/middleware';
 import { hashPassword } from '../lib/auth';
 import { UserDoc } from '../types';
@@ -56,7 +56,16 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     }
 
     if (req.method === 'DELETE') {
-      await updateItemById<UserDoc>(req.params.id, jwt.school_id, 'user', { active: false });
+      const hardDelete = req.query.get('hard') === 'true';
+      if (hardDelete) {
+        // Verify the user belongs to this school before deleting
+        const rows = await sql<{ data: UserDoc }[]>`
+          SELECT data FROM items WHERE id = ${req.params.id} AND school_id = ${jwt.school_id} AND type = 'user'`;
+        if (!rows[0]) throw new HttpError(404, 'User not found');
+        await deleteItemById(req.params.id);
+      } else {
+        await updateItemById<UserDoc>(req.params.id, jwt.school_id, 'user', { active: false });
+      }
       return { status: 204 };
     }
 
