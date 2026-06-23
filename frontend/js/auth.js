@@ -24,10 +24,12 @@ function logout() {
 function requireSession(roles = []) {
   const s = getSession();
   if (!s || !s.token) {
+    clearSession();
     window.location.href = SCHOOL_SLUG ? `/${SCHOOL_SLUG}` : '/';
     return null;
   }
   if (roles.length > 0 && !roles.includes(s.role)) {
+    clearSession();
     window.location.href = SCHOOL_SLUG ? `/${SCHOOL_SLUG}` : '/';
     return null;
   }
