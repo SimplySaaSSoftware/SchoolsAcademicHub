@@ -3,21 +3,14 @@ import * as jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
 import { JwtPayload, Role } from '../types';
 
-const JWT_SECRET        = process.env.JWT_SECRET!;
-const JWT_SECRET_SUPER  = process.env.JWT_SECRET_SUPER!;
+const JWT_SECRET = (process.env.JWT_SECRET_SUPER || process.env.JWT_SECRET)!;
 
 export function signToken(payload: JwtPayload, expiresIn: string = '8h'): string {
-  const secret = payload.role === 'super_admin' ? JWT_SECRET_SUPER : JWT_SECRET;
-  return jwt.sign(payload, secret, { expiresIn } as jwt.SignOptions);
+  return jwt.sign(payload, JWT_SECRET, { expiresIn } as jwt.SignOptions);
 }
 
 export function verifyToken(token: string): JwtPayload {
-  // Try normal secret first, then super admin secret
-  try {
-    return jwt.verify(token, JWT_SECRET) as JwtPayload;
-  } catch {
-    return jwt.verify(token, JWT_SECRET_SUPER) as JwtPayload;
-  }
+  return jwt.verify(token, JWT_SECRET) as JwtPayload;
 }
 
 export async function hashPin(pin: string): Promise<string> {
