@@ -1,7 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { sql } from '../lib/db';
+import { sql, ensureSchema } from '../lib/db';
 
-async function handler(_req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
+async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
   const dbVars = {
     PGHOST:     process.env.PGHOST     ?? '(not set)',
     PGPORT:     process.env.PGPORT     ?? '(not set)',
@@ -12,10 +12,14 @@ async function handler(_req: HttpRequest, _ctx: InvocationContext): Promise<Http
 
   try {
     const rows = await sql`SELECT current_database() AS db, now() AS ts`;
+    if (req.method === 'POST') {
+      await ensureSchema();
+      return { jsonBody: { ok: true, action: 'schema initialised', db: rows[0], dbVars } };
+    }
     return { jsonBody: { ok: true, db: rows[0], dbVars } };
   } catch (err: any) {
     return { status: 500, jsonBody: { ok: false, error: err.message, dbVars } };
   }
 }
 
-app.http('debug-db', { methods: ['GET'], authLevel: 'anonymous', route: 'debug/db', handler });
+app.http('debug-db', { methods: ['GET', 'POST'], authLevel: 'anonymous', route: 'debug/db', handler });
