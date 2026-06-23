@@ -109,7 +109,7 @@
           const name        = typeof a === 'string' ? a : a.name;
           const rawId       = typeof a === 'string' ? a : a.driveId;
           const isDriveId   = rawId && !rawId.startsWith('http');
-          const previewUrl  = isDriveId ? `https://drive.google.com/file/d/${encodeURIComponent(rawId)}/preview` : rawId;
+          const previewUrl  = isDriveId ? `/api/files/${encodeURIComponent(rawId)}?t=${encodeURIComponent(getToken() ?? '')}` : rawId;
           const downloadUrl = isDriveId ? `https://drive.google.com/uc?id=${encodeURIComponent(rawId)}&export=download` : rawId;
           return `<div class="attachment-item">
             <details class="attachment-expander">

@@ -119,3 +119,20 @@ export async function setPublicReadable(driveId: string): Promise<void> {
   });
 }
 
+export async function serveFile(driveId: string): Promise<{ stream: ReadableStream; mimeType: string; name: string }> {
+  const token = await getAccessToken();
+  const [meta, mediaRes] = await Promise.all([
+    fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(driveId)}?fields=name,mimeType`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(async (r) => {
+      if (!r.ok) throw new Error(`Drive meta error ${r.status}`);
+      return r.json() as Promise<{ name: string; mimeType: string }>;
+    }),
+    fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(driveId)}?alt=media`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  ]);
+  if (!mediaRes.ok) throw new Error(`Drive stream error ${mediaRes.status}: ${await mediaRes.text()}`);
+  return { stream: mediaRes.body!, mimeType: meta.mimeType ?? 'application/octet-stream', name: meta.name };
+}
+
