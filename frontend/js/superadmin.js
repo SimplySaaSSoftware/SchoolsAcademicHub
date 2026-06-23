@@ -59,8 +59,9 @@
           }),
         });
         const data = await res.json();
+        console.log('[login] status:', res.status, 'body:', JSON.stringify(data));
         if (!res.ok) throw new Error(data.error || 'Login failed');
-        if (data.role !== 'super_admin') throw new Error('Not a super admin account');
+        if (data.role !== 'super_admin') throw new Error(`Not a super admin account (got role: ${data.role})`);
         saveSession(data);
         session = data;
         await loadSchools();
