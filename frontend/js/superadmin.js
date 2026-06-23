@@ -12,6 +12,8 @@
   }
   function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+  let schools = [];
+
   // Check session — show login form if not authenticated
   let session = getSession();
   if (!session || session.role !== 'super_admin') {
@@ -74,7 +76,6 @@
   }
 
   // ── Schools list ──────────────────────────────────────────────
-  let schools = [];
 
   async function loadSchools() {
     main.innerHTML = '<p class="loading-text">Loading schools…</p>';
