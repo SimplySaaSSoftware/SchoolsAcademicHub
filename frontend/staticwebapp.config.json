@@ -4,12 +4,12 @@
     { "route": "/superadmin",     "rewrite": "/superadmin.html" },
     { "route": "/superadmin/*",   "rewrite": "/superadmin.html" },
     { "route": "/reset-password", "rewrite": "/reset-password.html" },
-    { "route": "/:school/student",   "rewrite": "/student.html" },
-    { "route": "/:school/student/*", "rewrite": "/student.html" },
-    { "route": "/:school/teacher",   "rewrite": "/teacher.html" },
-    { "route": "/:school/teacher/*", "rewrite": "/teacher.html" },
-    { "route": "/:school/admin",     "rewrite": "/admin.html" },
-    { "route": "/:school/admin/*",   "rewrite": "/admin.html" }
+    { "route": "/{school}/student",   "rewrite": "/student.html" },
+    { "route": "/{school}/student/*", "rewrite": "/student.html" },
+    { "route": "/{school}/teacher",   "rewrite": "/teacher.html" },
+    { "route": "/{school}/teacher/*", "rewrite": "/teacher.html" },
+    { "route": "/{school}/admin",     "rewrite": "/admin.html" },
+    { "route": "/{school}/admin/*",   "rewrite": "/admin.html" }
   ],
   "globalHeaders": {
     "Cache-Control": "no-cache, must-revalidate"
