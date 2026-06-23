@@ -82,6 +82,7 @@
       schools = await apiGet('/superadmin/schools');
     } catch (e) {
       if (e.message.includes('Session expired') || e.message.includes('401') || e.message.includes('auth')) {
+        clearSession();
         showLoginForm(e.message);
       } else {
         main.innerHTML = `<p style="color:red;padding:1rem">${e.message}</p>`;
