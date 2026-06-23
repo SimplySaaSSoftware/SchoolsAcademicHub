@@ -10,7 +10,8 @@
     { "route": "/*/teacher",   "rewrite": "/teacher.html" },
     { "route": "/*/teacher/*", "rewrite": "/teacher.html" },
     { "route": "/*/admin",     "rewrite": "/admin.html" },
-    { "route": "/*/admin/*",   "rewrite": "/admin.html" }
+    { "route": "/*/admin/*",   "rewrite": "/admin.html" },
+    { "route": "/*",           "rewrite": "/index.html" }
   ],
   "globalHeaders": {
     "Cache-Control": "no-cache, must-revalidate"
