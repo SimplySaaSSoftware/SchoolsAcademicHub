@@ -94,7 +94,18 @@
       post_id: post.id, post_title: post.title, subject: post.subject, term: post.term,
     }).catch(() => {});
 
-    const questions = (() => { try { return JSON.parse(post.quiz_json || '[]'); } catch { return []; } })();
+    const questions   = (() => { try { return JSON.parse(post.quiz_json || '[]'); } catch { return []; } })();
+    const attachments = (() => { try { return JSON.parse(post.attachments_json || '[]'); } catch { return []; } })();
+    const attachHtml  = attachments.length ? `
+      <div class="attachments" style="margin:1rem 0;padding:1rem;background:#f8f9fa;border-radius:.5rem">
+        <h4 style="margin:0 0 .5rem">Attachments</h4>
+        ${attachments.map((a) => {
+          const name = typeof a === 'string' ? a : a.name;
+          const id   = typeof a === 'string' ? a : a.driveId;
+          const href = id.startsWith('http') ? id : `https://drive.google.com/uc?id=${encodeURIComponent(id)}&export=download`;
+          return `<a href="${href}" target="_blank" rel="noopener" style="display:block;margin:.25rem 0">📎 ${name}</a>`;
+        }).join('')}
+      </div>` : '';
 
     main.innerHTML = `
       <div class="post-view">
@@ -102,6 +113,7 @@
         <h1 class="post-view__title">${esc(post.title)}</h1>
         <p class="post-view__meta">Grade ${esc(String(post.grade))} &bull; ${esc(post.subject)} &bull; Term ${esc(post.term)}</p>
         <div class="post-content" id="post-content">${sanitize(post.content_html ?? '')}</div>
+        ${attachHtml}
         ${questions.length ? '<div id="quiz-section"></div>' : ''}
       </div>`;
 

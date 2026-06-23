@@ -164,9 +164,11 @@
             <div id="quill-editor" style="min-height:280px;background:#fff"></div>
           </div>
           <div class="form-group">
-            <label class="form-label">Attachments (Google Drive links)</label>
+            <label class="form-label">Attachments</label>
             <div id="attachments-list"></div>
-            <button id="btn-add-attachment" class="btn btn--secondary btn--sm" style="margin-top:.5rem">+ Add Link</button>
+            <label class="btn btn--secondary btn--sm" style="margin-top:.5rem;cursor:pointer">
+              + Add File<input id="file-input" type="file" multiple style="display:none"/>
+            </label>
           </div>
         </div>
         <div class="editor-right">
@@ -185,7 +187,10 @@
     document.getElementById('btn-save-draft').addEventListener('click', () => savePost(post, 'draft'));
     document.getElementById('btn-publish').addEventListener('click', () => savePost(post, 'published'));
     document.getElementById('btn-add-question').addEventListener('click', addQuestion);
-    document.getElementById('btn-add-attachment').addEventListener('click', addAttachment);
+    document.getElementById('file-input').addEventListener('change', (e) => {
+      Array.from(e.target.files).forEach(uploadAttachment);
+      e.target.value = '';
+    });
 
     // Init Quill (load from CDN if not already loaded)
     loadQuill(() => {
@@ -244,24 +249,134 @@
   }
 
   // ── Attachments ─────────────────────────────────────────────
-  function getAttachments() {
-    return [...document.querySelectorAll('#attachments-list .attachment-row input')].map((i) => i.value.trim()).filter(Boolean);
+  // Stored as [{name, driveId}] — Drive is invisible to teachers/students
+  let pendingAttachments = []; // [{name, driveId}]
+
+  function getAttachments() { return pendingAttachments.filter((a) => a.driveId); }
+
+  function renderAttachments(saved) {
+    pendingAttachments = saved.map((a) =>
+      typeof a === 'string' ? { name: a, driveId: a } : a  // backward-compat with old URL strings
+    );
+    refreshAttachmentList();
   }
-  function renderAttachments(links) {
+
+  function refreshAttachmentList() {
     const list = document.getElementById('attachments-list');
+    if (!list) return;
     list.innerHTML = '';
-    links.forEach((url) => addAttachmentRow(url));
+    pendingAttachments.forEach((att, i) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem';
+      if (att.driveId) {
+        row.innerHTML = `<span style="flex:1;font-size:.875rem">📎 ${esc(att.name)}</span>
+          <button class="btn btn--danger btn--sm" data-idx="${i}" type="button">&times;</button>`;
+      } else {
+        row.innerHTML = `<span style="flex:1;font-size:.875rem;color:#888">⏳ ${esc(att.name)}</span>
+          <div class="upload-progress" style="width:80px;height:6px;background:#eee;border-radius:3px">
+            <div class="upload-progress__bar" data-idx="${i}" style="height:100%;background:var(--primary);border-radius:3px;width:0%"></div>
+          </div>`;
+      }
+      row.querySelector('button')?.addEventListener('click', () => {
+        pendingAttachments.splice(i, 1);
+        refreshAttachmentList();
+      });
+      list.appendChild(row);
+    });
   }
-  function addAttachment() { addAttachmentRow(''); }
-  function addAttachmentRow(url) {
-    const list = document.getElementById('attachments-list');
-    const row  = document.createElement('div');
-    row.className = 'attachment-row';
-    row.style.cssText = 'display:flex;gap:.5rem;margin-bottom:.4rem';
-    row.innerHTML = `<input class="form-control" type="url" value="${esc(url)}" placeholder="https://drive.google.com/…"/>
-      <button class="btn btn--danger btn--sm" type="button">&times;</button>`;
-    row.querySelector('button').addEventListener('click', () => row.remove());
-    list.appendChild(row);
+
+  const SMALL_FILE_THRESHOLD = 4 * 1024 * 1024; // 4 MB
+
+  async function uploadAttachment(file) {
+    const grade   = Number(document.getElementById('f-grade')?.value);
+    const subject = document.getElementById('f-subject')?.value;
+    if (!grade || !subject) { showNotify('Select grade and subject before uploading files.', true); return; }
+
+    const isVideo = file.type.startsWith('video/');
+    const maxSize = isVideo ? 2 * 1024 * 1024 * 1024 : 500 * 1024 * 1024;
+    if (file.size > maxSize) {
+      showNotify(`${file.name} is too large (max ${isVideo ? '2 GB' : '500 MB'}).`, true);
+      return;
+    }
+
+    const idx = pendingAttachments.length;
+    pendingAttachments.push({ name: file.name, driveId: null });
+    refreshAttachmentList();
+
+    function setProgress(pct) {
+      const bar = document.querySelector(`.upload-progress__bar[data-idx="${idx}"]`);
+      if (bar) bar.style.width = `${pct}%`;
+    }
+
+    try {
+      // Step 1: get pre-authenticated Drive upload URL from our API
+      const { uploadUrl } = await apiPost('/files/upload-session', {
+        filename: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        fileSize: file.size,
+        grade, subject,
+      });
+
+      let driveId;
+      const useDirect = isVideo || file.size > SMALL_FILE_THRESHOLD;
+
+      if (useDirect) {
+        // Step 2a: PUT file DIRECTLY from browser to Drive — no JSON payload limits
+        const ctrl  = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 10 * 60 * 1000); // 10 min timeout
+        try {
+          const res = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': file.type || 'application/octet-stream' },
+            body: file,
+            signal: ctrl.signal,
+          });
+          if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+          const data = await res.json();
+          driveId = data.id;
+        } finally {
+          clearTimeout(timer);
+        }
+      } else {
+        // Step 2b: small files — proxy through API in 4 MB base64 chunks
+        const CHUNK = 4 * 1024 * 1024;
+        let offset = 0;
+        while (offset < file.size) {
+          const slice  = file.slice(offset, offset + CHUNK);
+          const base64 = await blobToBase64(slice);
+          const result = await apiPost('/files/upload-chunk', {
+            uploadUrl, base64,
+            mimeType: file.type || 'application/octet-stream',
+            offset, totalSize: file.size,
+          });
+          offset += slice.size;
+          setProgress(Math.round((offset / file.size) * 90));
+          if (result.done) { driveId = result.driveId; break; }
+        }
+      }
+
+      if (!driveId) throw new Error('Drive did not return a file ID.');
+
+      // Step 3: make publicly readable via our API
+      await apiPost('/files/finalize', { driveId });
+      setProgress(100);
+
+      pendingAttachments[idx] = { name: file.name, driveId };
+      refreshAttachmentList();
+    } catch (e) {
+      pendingAttachments.splice(idx, 1);
+      refreshAttachmentList();
+      showNotify(`Upload failed: ${e.message}`, true);
+    }
+  }
+
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
   }
 
   // ── Quiz builder ─────────────────────────────────────────────
@@ -334,7 +449,12 @@
         <div class="modal__body">
           <p class="post-view__meta">Grade ${esc(String(post?.grade ?? ''))} &bull; ${esc(post?.subject ?? '')} &bull; Term ${esc(post?.term ?? '')}</p>
           <div class="post-content">${post?.content_html ?? ''}</div>
-          ${links.length ? `<div class="attachments"><h4>Attachments</h4>${links.map((l) => `<a href="${esc(l)}" target="_blank" rel="noopener">${esc(l)}</a>`).join('<br>')}</div>` : ''}
+          ${links.length ? `<div class="attachments"><h4>Attachments</h4>${links.map((a) => {
+            const name = typeof a === 'string' ? a : a.name;
+            const id   = typeof a === 'string' ? a : a.driveId;
+            const href = id.startsWith('http') ? id : `https://drive.google.com/uc?id=${id}&export=download`;
+            return `<a href="${esc(href)}" target="_blank" rel="noopener">📎 ${esc(name)}</a>`;
+          }).join('<br>')}</div>` : ''}
           ${questions.length ? `<div class="quiz-card"><h3 class="quiz-title">Quiz</h3>${questions.map((q, i) => `
             <div class="quiz-question"><p class="quiz-question__text"><strong>Q${i+1}.</strong> ${esc(q.question)}</p>
             <div class="quiz-options">${(q.options||[]).map((o, oi) => `<label class="quiz-option"><input type="radio" name="pq${i}" value="${oi}"/><span>${esc(o)}</span></label>`).join('')}</div>
