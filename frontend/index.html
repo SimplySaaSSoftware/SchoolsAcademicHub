@@ -111,8 +111,21 @@ function hideError()    { errBanner.hidden = true; }
   document.getElementById('loading-msg').hidden = true;
   document.getElementById('login-card').hidden  = false;
 
-  if (school.auth_mode === 'pin') {
+  // Show PIN form if school uses PIN auth; always allow staff to switch to email login
+  const hasPinAuth = school.auth_mode === 'pin' || school.student_auth === 'pin';
+  if (hasPinAuth) {
     document.getElementById('pin-form').hidden = false;
+    // Add a "Staff login" link below the PIN form
+    const staffLink = document.createElement('p');
+    staffLink.style.cssText = 'text-align:center;margin-top:1rem';
+    staffLink.innerHTML = '<a href="#" id="staff-login-link" style="font-size:0.875rem;">Staff login (email &amp; password)</a>';
+    document.getElementById('pin-form').appendChild(staffLink);
+    document.getElementById('staff-login-link').addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('pin-form').hidden  = true;
+      document.getElementById('email-form').hidden = false;
+      hideError();
+    });
   } else {
     document.getElementById('email-form').hidden = false;
   }
@@ -121,7 +134,7 @@ function hideError()    { errBanner.hidden = true; }
   document.getElementById('pin-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     hideError();
-    const btn = e.target.querySelector('button');
+    const btn = e.target.querySelector('button[type="submit"]');
     btn.disabled = true; btn.textContent = 'Verifying…';
     try {
       const session = await login(SCHOOL_SLUG, { pin: document.getElementById('pin-input').value.trim() });
@@ -150,6 +163,20 @@ function hideError()    { errBanner.hidden = true; }
       btn.disabled = false; btn.textContent = 'Sign in';
     }
   });
+
+  // Back to PIN link (shown when staff switches to email form and school has PIN auth)
+  if (hasPinAuth) {
+    const backLink = document.createElement('p');
+    backLink.style.cssText = 'text-align:center;margin-top:0.5rem';
+    backLink.innerHTML = '<a href="#" id="back-to-pin-link" style="font-size:0.875rem;">← Student PIN login</a>';
+    document.getElementById('email-form').appendChild(backLink);
+    document.getElementById('back-to-pin-link').addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('email-form').hidden = true;
+      document.getElementById('pin-form').hidden   = false;
+      hideError();
+    });
+  }
 
   // Forgot password
   document.getElementById('forgot-link').addEventListener('click', (e) => {
