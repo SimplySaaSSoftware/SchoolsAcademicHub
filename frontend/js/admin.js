@@ -88,30 +88,11 @@
 
   // ── Posts overview ───────────────────────────────────────────
   async function renderPosts() {
-    let posts;
-    try { posts = await apiGet(`/posts?school_id=${SCHOOL_SLUG}`); }
-    catch (e) { tabEl().innerHTML = `<p style="color:red">${e.message}</p>`; return; }
-
-    let html = `
-      <div style="margin-bottom:1rem;text-align:right">
-        <button id="btn-export-posts-tab" class="btn btn--secondary btn--sm">Export Excel</button>
-      </div>
-      <table class="table">
-        <thead><tr><th>Title</th><th>Grade</th><th>Subject</th><th>Term</th><th>Status</th><th>Author</th></tr></thead>
-        <tbody>`;
-    if (!posts.length) html += '<tr><td colspan="6" style="text-align:center;color:#888;padding:1.5rem">No posts.</td></tr>';
-    posts.forEach((p) => {
-      html += `<tr>
-        <td>${esc(p.title)}</td><td>${esc(String(p.grade))}</td>
-        <td>${esc(p.subject)}</td><td>${esc(p.term)}</td>
-        <td><span class="badge badge--${p.status === 'published' ? 'published' : 'draft'}">${esc(p.status)}</span></td>
-        <td>${esc(p.author_name ?? '')}</td>
-      </tr>`;
-    });
-    html += '</tbody></table>';
-    tabEl().innerHTML = html;
-    document.getElementById('btn-export-posts-tab').addEventListener('click', () =>
-      downloadExport('/admin/export/posts', 'all-posts.xlsx').catch((e) => showNotify(e.message, true)));
+    tabEl().innerHTML = `
+      <div style="padding:2rem;text-align:center">
+        <p style="margin-bottom:1rem;color:var(--text-light)">Post creation and editing is done in the Teacher portal.</p>
+        <a class="btn btn--primary" href="/teacher/${SCHOOL_SLUG}">Go to Teacher Portal →</a>
+      </div>`;
   }
 
   // ── Users ────────────────────────────────────────────────────

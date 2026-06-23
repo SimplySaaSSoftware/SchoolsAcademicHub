@@ -112,7 +112,8 @@ function hideError()    { errBanner.hidden = true; }
   document.getElementById('login-card').hidden  = false;
 
   // Show PIN form if school uses PIN auth; always allow staff to switch to email login
-  const hasPinAuth = school.auth_mode === 'pin' || school.student_auth === 'pin';
+  // student_auth values that use PIN: 'grade_pin', 'student_pin'
+  const hasPinAuth = school.auth_mode === 'pin' || (school.student_auth ?? '').includes('pin');
   if (hasPinAuth) {
     document.getElementById('pin-form').hidden = false;
     // Add a "Staff login" link below the PIN form
