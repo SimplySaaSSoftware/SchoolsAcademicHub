@@ -2,6 +2,15 @@
 
 Multi-tenant SaaS LMS built on Azure Static Web Apps (free tier) + Azure Functions v4 (Node.js) + Azure PostgreSQL.
 
+## CRITICAL: Mobile-first design
+This app is primarily used by **school children and teachers on mobile phones**. Every UI change must be tested mentally at 375px width. Rules:
+- Touch targets must be ≥ 44px tall
+- No horizontal overflow — tables must scroll, not overflow
+- Modals should slide up from the bottom on mobile (≤600px)
+- Font sizes must be legible without zooming (≥15px body text)
+- Avoid hover-only interactions — all actions must be tappable
+- Test every new screen at mobile width before shipping
+
 ## Live URL
 https://polite-island-0106b4103.7.azurestaticapps.net/
 
