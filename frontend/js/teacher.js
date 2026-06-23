@@ -6,13 +6,19 @@
   const main   = document.querySelector('main');
   const notify = document.getElementById('notification');
 
-  // Branding
+  // Branding — apply cached color immediately to avoid flash on navigation
+  const _brandKey = `brand_color_${SCHOOL_SLUG}`;
+  const _cachedColor = sessionStorage.getItem(_brandKey);
+  if (_cachedColor) document.documentElement.style.setProperty('--primary', _cachedColor);
+
   let school = {};
   try {
     school = await apiGet(`/school/config/${SCHOOL_SLUG}`);
+    const _color = school.primary_colour ?? '#1a56a0';
     document.title = `${school.name} — Teacher`;
-    document.documentElement.style.setProperty('--primary', school.primary_colour ?? '#1a56a0');
+    document.documentElement.style.setProperty('--primary', _color);
     document.getElementById('school-brand').textContent = school.name;
+    sessionStorage.setItem(_brandKey, _color);
   } catch {}
 
   const gradeBadge = document.getElementById('teacher-grade');
@@ -57,7 +63,7 @@
         <h1 class="page-title">Posts</h1>
         <button id="btn-new-post" class="btn btn--primary">+ New Post</button>
       </div>
-      <table class="table" id="posts-table">
+      <div class="table-scroll-wrap"><table class="table" id="posts-table">
         <thead><tr>
           <th>Title</th><th>Grade</th><th>Subject</th><th>Term</th>
           <th>Status</th><th>Author</th><th></th>
@@ -83,7 +89,7 @@
         </td>
       </tr>`;
     });
-    html += '</tbody></table>';
+    html += '</tbody></table></div>';
     main.innerHTML = html;
 
     document.getElementById('btn-new-post').addEventListener('click', () => showEditor(null));
@@ -443,32 +449,30 @@
 
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
-    overlay.innerHTML = `
-      <div class="modal modal--wide">
+    const modal = document.createElement('div');
+    modal.className = 'modal modal--wide';
+    modal.innerHTML = `
         <div class="modal__header">
           <h2>${esc(post?.title ?? 'Preview')}</h2>
           <span class="badge badge--draft" style="font-size:.7rem">Student view</span>
-          <button id="btn-close-preview" class="btn btn--ghost btn--sm" style="margin-left:auto">&times; Close</button>
+          <button class="btn btn--ghost btn--sm btn-fullscreen" title="Fullscreen" style="margin-left:auto">⛶</button>
+          <button id="btn-close-preview" class="btn btn--ghost btn--sm">&times; Close</button>
         </div>
         <div class="modal__body">
           <p class="post-view__meta">Grade ${esc(String(post?.grade ?? ''))} &bull; ${esc(post?.subject ?? '')} &bull; Term ${esc(post?.term ?? '')}</p>
           <div class="post-content">${sanitize(post?.content_html ?? '')}</div>
-          ${links.length ? `<div class="attachments"><h4>Attachments</h4>${links.map((a) => {
-            const name = typeof a === 'string' ? a : a.name;
-            const id   = typeof a === 'string' ? a : a.driveId;
-            const href = id.startsWith('http') ? id : `https://drive.google.com/uc?id=${id}&export=download`;
-            return `<a href="${esc(href)}" target="_blank" rel="noopener">📎 ${esc(name)}</a>`;
-          }).join('<br>')}</div>` : ''}
+          ${links.length ? `<div class="attachments"><h4>Attachments</h4>${links.map((a) => renderAttachmentItem(a)).join('')}</div>` : ''}
           ${questions.length ? `<div class="quiz-card"><h3 class="quiz-title">Quiz</h3>${questions.map((q, i) => `
             <div class="quiz-question"><p class="quiz-question__text"><strong>Q${i+1}.</strong> ${esc(q.question)}</p>
             <div class="quiz-options">${(q.options||[]).map((o, oi) => `<label class="quiz-option"><input type="radio" name="pq${i}" value="${oi}"/><span>${esc(o)}</span></label>`).join('')}</div>
             </div>`).join('')}
             <button class="btn btn--primary" style="margin-top:1rem" disabled>Submit Quiz</button>
           </div>` : ''}
-        </div>
-      </div>`;
+        </div>`;
 
+    overlay.appendChild(modal);
     document.body.appendChild(overlay);
+    addFullscreenToggle(overlay, modal);
     overlay.querySelector('#btn-close-preview').addEventListener('click', () => overlay.remove());
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
   }
@@ -477,15 +481,18 @@
   async function showStats(id) {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
-    overlay.innerHTML = `
-      <div class="modal modal--wide">
+    const modal = document.createElement('div');
+    modal.className = 'modal modal--wide';
+    modal.innerHTML = `
         <div class="modal__header">
           <h2>Post Stats</h2>
-          <button id="btn-close-stats" class="btn btn--ghost btn--sm" style="margin-left:auto">&times; Close</button>
+          <button class="btn btn--ghost btn--sm btn-fullscreen" title="Fullscreen" style="margin-left:auto">⛶</button>
+          <button id="btn-close-stats" class="btn btn--ghost btn--sm">&times; Close</button>
         </div>
-        <div class="modal__body" id="stats-body"><p class="loading-text">Loading…</p></div>
-      </div>`;
+        <div class="modal__body" id="stats-body"><p class="loading-text">Loading…</p></div>`;
+    overlay.appendChild(modal);
     document.body.appendChild(overlay);
+    addFullscreenToggle(overlay, modal);
     overlay.querySelector('#btn-close-stats').addEventListener('click', () => overlay.remove());
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 
@@ -540,6 +547,32 @@
     div.innerHTML = html;
     div.querySelectorAll('script,iframe,object,embed').forEach((el) => el.remove());
     return div.innerHTML;
+  }
+
+  function renderAttachmentItem(a) {
+    const name        = typeof a === 'string' ? a : a.name;
+    const rawId       = typeof a === 'string' ? a : a.driveId;
+    const isDriveId   = rawId && !rawId.startsWith('http');
+    const previewUrl  = isDriveId ? `https://drive.google.com/file/d/${encodeURIComponent(rawId)}/preview` : rawId;
+    const downloadUrl = isDriveId ? `https://drive.google.com/uc?id=${encodeURIComponent(rawId)}&export=download` : rawId;
+    return `<div class="attachment-item">
+      <details class="attachment-expander">
+        <summary>📎 ${esc(name)}</summary>
+        <iframe src="${esc(previewUrl)}" class="attachment-frame" allowfullscreen loading="lazy"></iframe>
+      </details>
+      <a href="${esc(downloadUrl)}" target="_blank" rel="noopener" class="attachment-dl" title="Download">⬇</a>
+    </div>`;
+  }
+
+  function addFullscreenToggle(overlay, modal) {
+    const btn = overlay.querySelector('.btn-fullscreen');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      const fs = modal.classList.toggle('modal--fullscreen');
+      overlay.classList.toggle('modal-overlay--fullscreen', fs);
+      btn.textContent = fs ? '⊡' : '⛶';
+      btn.title = fs ? 'Exit fullscreen' : 'Fullscreen';
+    });
   }
 
   // ── Quill loader ─────────────────────────────────────────────

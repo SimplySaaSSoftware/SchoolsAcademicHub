@@ -165,6 +165,7 @@ select.form-control { appearance: auto; }
   display: flex; align-items: center; justify-content: center;
   z-index: 8000; padding: 1rem;
 }
+.modal-overlay--fullscreen { padding: 0; align-items: stretch; }
 .modal {
   background: var(--surface); border-radius: 10px;
   box-shadow: 0 8px 32px rgba(0,0,0,.2);
@@ -172,13 +173,24 @@ select.form-control { appearance: auto; }
   display: flex; flex-direction: column;
 }
 .modal--wide { max-width: 780px; }
+.modal--fullscreen { max-width: 100% !important; max-height: 100vh !important; border-radius: 0; height: 100vh; }
 .modal__header {
   display: flex; align-items: center; gap: .75rem;
   padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-.modal__header h2 { font-size: 1.1rem; font-weight: 700; flex: 1; }
+.modal__header h2 { font-size: 1.1rem; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .modal__body { padding: 1.25rem; overflow-y: auto; }
+
+/* Buttons on light backgrounds (modal headers, editor toolbar) */
+.modal__header .btn--ghost,
+.page-toolbar .btn--ghost {
+  color: var(--text); border-color: var(--border);
+}
+.modal__header .btn--ghost:hover:not(:disabled),
+.page-toolbar .btn--ghost:hover:not(:disabled) {
+  background: var(--bg); color: var(--text);
+}
 
 /* ── Stats cards ──────────────────────────────────────── */
 .stats-summary { display: flex; gap: 1rem; flex-wrap: wrap; }
@@ -270,8 +282,26 @@ select.form-control { appearance: auto; }
 }
 .tag__del { background: none; border: none; cursor: pointer; color: var(--primary); font-size: 1rem; line-height: 1; padding: 0; }
 
-/* ── Attachment row ───────────────────────────────────── */
+/* ── Attachment row (editor upload list) ──────────────── */
 .attachment-row { display: flex; gap: .5rem; margin-bottom: .4rem; }
+
+/* ── Inline attachment viewer ─────────────────────────── */
+.attachment-item { display: flex; align-items: flex-start; gap: .5rem; margin: .4rem 0; }
+.attachment-expander { flex: 1; min-width: 0; }
+.attachment-expander > summary {
+  cursor: pointer; color: var(--primary); font-weight: 500;
+  padding: .3rem 0; list-style: none; word-break: break-word;
+}
+.attachment-expander > summary::-webkit-details-marker { display: none; }
+.attachment-frame {
+  width: 100%; height: 480px; border: 1px solid var(--border);
+  border-radius: var(--radius); margin-top: .5rem; display: block;
+}
+.attachment-dl {
+  color: var(--text-light); text-decoration: none; padding: .3rem .4rem;
+  font-size: 1rem; line-height: 1; white-space: nowrap; flex-shrink: 0;
+}
+.attachment-dl:hover { color: var(--primary); }
 
 /* ── Quill overrides ──────────────────────────────────── */
 .ql-container.ql-snow { border-radius: 0 0 var(--radius) var(--radius); }
@@ -279,3 +309,46 @@ select.form-control { appearance: auto; }
 
 /* ── Loading text ─────────────────────────────────────── */
 .loading-text { text-align: center; color: var(--text-light); padding: 3rem; font-size: .95rem; }
+
+/* ── Mobile / touch-friendly overrides ───────────────── */
+@media (max-width: 600px) {
+  /* Larger touch targets */
+  .btn { min-height: 44px; padding: .55rem 1rem; }
+  .btn--sm { min-height: 36px; padding: .4rem .7rem; }
+
+  /* Site header */
+  .site-header { padding: .6rem 1rem; }
+  .site-header__brand { font-size: 1rem; }
+
+  /* Page toolbar stacks on mobile */
+  .page-toolbar { flex-wrap: wrap; gap: .5rem; }
+  .page-toolbar > div { width: 100%; display: flex; gap: .4rem; flex-wrap: wrap; }
+
+  /* Tables scroll horizontally */
+  .table-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table { min-width: 520px; }
+  .table-actions { flex-wrap: nowrap; }
+
+  /* Cards go single column */
+  .cards { grid-template-columns: 1fr; }
+
+  /* Modal full-width on small screens */
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal { border-radius: 12px 12px 0 0; max-height: 92vh; }
+  .modal--fullscreen { border-radius: 0; max-height: 100vh; }
+
+  /* Attachment iframe shorter on mobile */
+  .attachment-frame { height: 320px; }
+
+  /* Editor layout already stacks via 840px breakpoint */
+  .editor-row-3 { grid-template-columns: 1fr; }
+
+  /* Post cards */
+  .post-card { padding: .85rem; }
+  .post-view { padding: .75rem; }
+  .post-view__title { font-size: 1.3rem; }
+
+  /* Quiz options spacing */
+  .quiz-option { padding: .5rem; }
+  .quiz-option input[type="radio"] { width: 1.2rem; height: 1.2rem; }
+}

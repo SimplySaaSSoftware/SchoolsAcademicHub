@@ -6,12 +6,18 @@
   const main   = document.querySelector('main');
   const notify = document.getElementById('notification');
 
-  // Branding
+  // Branding — apply cached color immediately to avoid flash on navigation
+  const _brandKey = `brand_color_${SCHOOL_SLUG}`;
+  const _cachedColor = sessionStorage.getItem(_brandKey);
+  if (_cachedColor) document.documentElement.style.setProperty('--primary', _cachedColor);
+
   try {
     const school = await apiGet(`/school/config/${SCHOOL_SLUG}`);
+    const _color = school.primary_colour ?? '#1a56a0';
     document.title = `${school.name} — Student`;
-    document.documentElement.style.setProperty('--primary', school.primary_colour ?? '#1a56a0');
+    document.documentElement.style.setProperty('--primary', _color);
     document.getElementById('school-brand').textContent = school.name;
+    sessionStorage.setItem(_brandKey, _color);
   } catch {}
 
   const badge = document.getElementById('grade-badge');
@@ -97,19 +103,27 @@
     const questions   = (() => { try { return JSON.parse(post.quiz_json || '[]'); } catch { return []; } })();
     const attachments = (() => { try { return JSON.parse(post.attachments_json || '[]'); } catch { return []; } })();
     const attachHtml  = attachments.length ? `
-      <div class="attachments" style="margin:1rem 0;padding:1rem;background:#f8f9fa;border-radius:.5rem">
+      <div class="attachments" style="margin:1rem 0">
         <h4 style="margin:0 0 .5rem">Attachments</h4>
         ${attachments.map((a) => {
-          const name = typeof a === 'string' ? a : a.name;
-          const id   = typeof a === 'string' ? a : a.driveId;
-          const href = id.startsWith('http') ? id : `https://drive.google.com/uc?id=${encodeURIComponent(id)}&export=download`;
-          return `<a href="${href}" target="_blank" rel="noopener" style="display:block;margin:.25rem 0">📎 ${name}</a>`;
+          const name        = typeof a === 'string' ? a : a.name;
+          const rawId       = typeof a === 'string' ? a : a.driveId;
+          const isDriveId   = rawId && !rawId.startsWith('http');
+          const previewUrl  = isDriveId ? `https://drive.google.com/file/d/${encodeURIComponent(rawId)}/preview` : rawId;
+          const downloadUrl = isDriveId ? `https://drive.google.com/uc?id=${encodeURIComponent(rawId)}&export=download` : rawId;
+          return `<div class="attachment-item">
+            <details class="attachment-expander">
+              <summary>📎 ${esc(name)}</summary>
+              <iframe src="${esc(previewUrl)}" class="attachment-frame" allowfullscreen loading="lazy"></iframe>
+            </details>
+            <a href="${esc(downloadUrl)}" target="_blank" rel="noopener" class="attachment-dl" title="Download">⬇</a>
+          </div>`;
         }).join('')}
       </div>` : '';
 
     main.innerHTML = `
       <div class="post-view">
-        <button id="btn-back" class="btn btn--ghost btn--sm" style="margin-bottom:1rem;">&larr; Back</button>
+        <button id="btn-back" class="btn btn--secondary btn--sm" style="margin-bottom:1rem;">&larr; Back</button>
         <h1 class="post-view__title">${esc(post.title)}</h1>
         <p class="post-view__meta">Grade ${esc(String(post.grade))} &bull; ${esc(post.subject)} &bull; Term ${esc(post.term)}</p>
         <div class="post-content" id="post-content">${sanitize(post.content_html ?? '')}</div>

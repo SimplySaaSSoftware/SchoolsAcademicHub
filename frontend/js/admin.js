@@ -6,12 +6,19 @@
   const main   = document.querySelector('main');
   const notify = document.getElementById('notification');
 
+  // Branding — apply cached color immediately to avoid flash on navigation
+  const _brandKey = `brand_color_${SCHOOL_SLUG}`;
+  const _cachedColor = sessionStorage.getItem(_brandKey);
+  if (_cachedColor) document.documentElement.style.setProperty('--primary', _cachedColor);
+
   let school = {};
   try {
     school = await apiGet(`/school/config/${SCHOOL_SLUG}`);
+    const _color = school.primary_colour ?? '#1a56a0';
     document.title = `${school.name} — Admin`;
-    document.documentElement.style.setProperty('--primary', school.primary_colour ?? '#1a56a0');
+    document.documentElement.style.setProperty('--primary', _color);
     document.getElementById('school-brand').textContent = `${school.name} — Admin`;
+    sessionStorage.setItem(_brandKey, _color);
   } catch {}
 
   document.getElementById('btn-logout').addEventListener('click', logout);
