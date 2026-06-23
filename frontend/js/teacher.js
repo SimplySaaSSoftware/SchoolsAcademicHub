@@ -196,18 +196,18 @@
     loadQuill(() => {
       quillEditor = new Quill('#quill-editor', {
         theme: 'snow',
+        placeholder: 'Write lesson content here…',
         modules: { toolbar: [
           [{ header: [1, 2, 3, false] }],
-          ['bold', 'italic', 'underline'],
+          ['bold', 'italic', 'underline', 'strike'],
+          [{ color: [] }, { background: [] }],
           [{ list: 'ordered' }, { list: 'bullet' }],
-          ['link', 'image'],
+          ['blockquote', 'link', 'image'],
           ['clean'],
         ]},
       });
       if (post?.content_html) {
-        // Quill 2.x: convert HTML to delta then set, avoids dangerouslyPasteHTML index bug
-        const delta = quillEditor.clipboard.convert({ html: post.content_html });
-        quillEditor.setContents(delta, 'silent');
+        quillEditor.clipboard.dangerouslyPasteHTML(post.content_html);
       }
     });
 
@@ -222,7 +222,7 @@
       grade:   Number(document.getElementById('f-grade')?.value),
       subject: document.getElementById('f-subject')?.value,
       term:    document.getElementById('f-term')?.value,
-      content_html:     quillEditor ? quillEditor.getSemanticHTML() : (existingPost?.content_html ?? ''),
+      content_html:     quillEditor ? quillEditor.root.innerHTML : (existingPost?.content_html ?? ''),
       attachments_json: JSON.stringify(getAttachments()),
       quiz_json:        JSON.stringify(quizQuestions),
     };
@@ -539,10 +539,10 @@
     if (window.Quill) { cb(); return; }
     const link  = document.createElement('link');
     link.rel    = 'stylesheet';
-    link.href   = 'https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css';
+    link.href   = 'https://cdn.quilljs.com/1.3.7/quill.snow.css';
     document.head.appendChild(link);
     const script = document.createElement('script');
-    script.src   = 'https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js';
+    script.src   = 'https://cdn.quilljs.com/1.3.7/quill.min.js';
     script.onload = cb;
     document.head.appendChild(script);
   }
