@@ -204,7 +204,11 @@
           ['clean'],
         ]},
       });
-      if (post?.content_html) quillEditor.clipboard.dangerouslyPasteHTML(post.content_html);
+      if (post?.content_html) {
+        // Quill 2.x: convert HTML to delta then set, avoids dangerouslyPasteHTML index bug
+        const delta = quillEditor.clipboard.convert({ html: post.content_html });
+        quillEditor.setContents(delta, 'silent');
+      }
     });
 
     renderAttachments(post ? ((() => { try { return JSON.parse(post.attachments_json || '[]'); } catch { return []; } })()) : []);
@@ -218,7 +222,7 @@
       grade:   Number(document.getElementById('f-grade')?.value),
       subject: document.getElementById('f-subject')?.value,
       term:    document.getElementById('f-term')?.value,
-      content_html:     quillEditor ? quillEditor.root.innerHTML : (existingPost?.content_html ?? ''),
+      content_html:     quillEditor ? quillEditor.getSemanticHTML() : (existingPost?.content_html ?? ''),
       attachments_json: JSON.stringify(getAttachments()),
       quiz_json:        JSON.stringify(quizQuestions),
     };
@@ -448,7 +452,7 @@
         </div>
         <div class="modal__body">
           <p class="post-view__meta">Grade ${esc(String(post?.grade ?? ''))} &bull; ${esc(post?.subject ?? '')} &bull; Term ${esc(post?.term ?? '')}</p>
-          <div class="post-content">${post?.content_html ?? ''}</div>
+          <div class="post-content">${sanitize(post?.content_html ?? '')}</div>
           ${links.length ? `<div class="attachments"><h4>Attachments</h4>${links.map((a) => {
             const name = typeof a === 'string' ? a : a.name;
             const id   = typeof a === 'string' ? a : a.driveId;
