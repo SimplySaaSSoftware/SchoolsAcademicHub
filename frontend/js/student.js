@@ -113,7 +113,7 @@
           const downloadUrl = isDriveId ? `https://drive.google.com/uc?id=${encodeURIComponent(rawId)}&export=download` : rawId;
           return `<div class="attachment-item">
             <details class="attachment-expander">
-              <summary>📎 ${esc(name)}</summary>
+              <summary>📎 ${esc(name)}<span style="font-size:.75rem;font-weight:400;opacity:.7;margin-left:.5rem">Tap to view</span></summary>
               <iframe src="${esc(previewUrl)}" class="attachment-frame" allowfullscreen loading="lazy"></iframe>
             </details>
             <a href="${esc(downloadUrl)}" target="_blank" rel="noopener" class="attachment-dl" title="Download">⬇</a>
