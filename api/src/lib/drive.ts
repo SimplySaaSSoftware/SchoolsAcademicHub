@@ -106,14 +106,13 @@ export async function createUploadSession(
 export async function proxyChunk(
   uploadUrl: string, base64: string, mimeType: string, offset: number, totalSize: number
 ): Promise<{ done: boolean; driveId?: string }> {
-  const bytes     = Buffer.from(base64, 'base64');
-  const end       = offset + bytes.length - 1;
-  const token     = await getAccessToken();
+  const bytes = Buffer.from(base64, 'base64');
+  const end   = offset + bytes.length - 1;
 
+  // Resumable upload session URLs are self-authenticating — no Authorization header needed
   const res = await fetch(uploadUrl, {
     method: 'PUT',
     headers: {
-      Authorization: `Bearer ${token}`,
       'Content-Range': `bytes ${offset}-${end}/${totalSize}`,
       'Content-Type': mimeType,
     },
