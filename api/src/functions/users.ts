@@ -18,13 +18,15 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     }
 
     if (req.method === 'POST') {
-      const body = await req.json() as { email: string; name: string; role: string; grade?: number; password: string };
+      const body = await req.json() as { email: string; name: string; role: string; grade?: number; password: string; slug?: string };
       if (!body.email || !body.name || !body.role || !body.password) throw new HttpError(400, 'email, name, role, and password required');
       if (body.password.length < 8) throw new HttpError(400, 'Password must be at least 8 characters');
+      const schoolId = jwt.role === 'super_admin' ? (body.slug ?? jwt.school_id) : jwt.school_id;
+      if (!schoolId || schoolId === 'system') throw new HttpError(400, 'slug required when creating user as super admin');
 
       const doc: UserDoc = {
         id:            randomUUID(),
-        school_id:     jwt.school_id,
+        school_id:     schoolId,
         type:          'user',
         role:          body.role as UserDoc['role'],
         email:         body.email.toLowerCase().trim(),

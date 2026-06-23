@@ -186,6 +186,35 @@
             <input id="s-active" type="checkbox" ${(school?.active ?? true) ? 'checked' : ''}/>
             <label class="form-label" style="margin:0">Active</label>
           </div>
+          ${!isEdit ? `
+          <hr style="margin:1.25rem 0;border:none;border-top:1px solid #e5e7eb"/>
+          <p style="font-size:.85rem;color:#555;margin-bottom:.75rem"><strong>First Admin Account</strong> — credentials to log in to this school</p>
+          <div class="form-group">
+            <label class="form-label">Admin Name *</label>
+            <input id="s-admin-name" class="form-control" placeholder="Principal Smith"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Admin Email *</label>
+            <input id="s-admin-email" class="form-control" type="email" placeholder="admin@school.co.za"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Admin Password *</label>
+            <input id="s-admin-password" class="form-control" type="password" placeholder="Min 8 characters"/>
+          </div>` : `
+          <hr style="margin:1.25rem 0;border:none;border-top:1px solid #e5e7eb"/>
+          <p style="font-size:.85rem;color:#555;margin-bottom:.75rem"><strong>Add / Reset Admin</strong> — leave blank to keep existing accounts</p>
+          <div class="form-group">
+            <label class="form-label">New Admin Name</label>
+            <input id="s-admin-name" class="form-control" placeholder="Principal Smith"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">New Admin Email</label>
+            <input id="s-admin-email" class="form-control" type="email" placeholder="admin@school.co.za"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">New Admin Password</label>
+            <input id="s-admin-password" class="form-control" type="password" placeholder="Min 8 characters"/>
+          </div>`}
           <button id="btn-save-school" class="btn btn--primary" style="width:100%;margin-top:.5rem">${isEdit ? 'Update School' : 'Create School'}</button>
         </div>
       </div>`;
@@ -214,11 +243,26 @@
       if (!body.name || !body.slug) { showNotify('Name and slug are required.', true); return; }
       if (!gradesRaw.length)        { showNotify('At least one grade required.', true); return; }
 
+      const adminName     = overlay.querySelector('#s-admin-name').value.trim();
+      const adminEmail    = overlay.querySelector('#s-admin-email').value.trim();
+      const adminPassword = overlay.querySelector('#s-admin-password').value;
+
+      if (!isEdit && (!adminName || !adminEmail || !adminPassword)) {
+        showNotify('Admin name, email and password are required.', true); return;
+      }
+
       const btn = overlay.querySelector('#btn-save-school');
       btn.disabled = true; btn.textContent = 'Saving…';
       try {
-        if (isEdit) await apiPut(`/superadmin/schools/${school.id}`, body);
-        else        await apiPost('/superadmin/schools', body);
+        if (isEdit) {
+          await apiPut(`/superadmin/schools/${school.id}`, body);
+          if (adminEmail && adminPassword) {
+            await apiPost('/users', { slug: school.slug, name: adminName || 'Admin', email: adminEmail, password: adminPassword, role: 'admin' });
+          }
+        } else {
+          await apiPost('/superadmin/schools', body);
+          await apiPost('/users', { slug: body.slug, name: adminName, email: adminEmail, password: adminPassword, role: 'admin' });
+        }
         overlay.remove();
         showNotify(isEdit ? 'School updated.' : 'School created.');
         await loadSchools();
