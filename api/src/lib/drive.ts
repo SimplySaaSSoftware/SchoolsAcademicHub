@@ -1,47 +1,30 @@
-import { randomUUID } from 'crypto';
-
-const ROOT_FOLDER_ID = process.env.DRIVE_ROOT_FOLDER_ID!;
-const SA_JSON        = process.env.GOOGLE_SERVICE_ACCOUNT_JSON!;
-
-interface ServiceAccount {
-  client_email: string;
-  private_key: string;
-  token_uri: string;
-}
+const ROOT_FOLDER_ID   = process.env.DRIVE_ROOT_FOLDER_ID!;
+const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID!;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
+const GOOGLE_REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN!;
 
 let _accessToken: string | null = null;
-let _tokenExpiry  = 0;
+let _tokenExpiry = 0;
 
 async function getAccessToken(): Promise<string> {
   if (_accessToken && Date.now() < _tokenExpiry - 60_000) return _accessToken;
 
-  const sa: ServiceAccount = JSON.parse(SA_JSON);
-  const now   = Math.floor(Date.now() / 1000);
-  const claim = { iss: sa.client_email, scope: 'https://www.googleapis.com/auth/drive', aud: sa.token_uri, iat: now, exp: now + 3600 };
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_REFRESH_TOKEN) {
+    throw new Error('Missing GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, or GOOGLE_REFRESH_TOKEN env vars');
+  }
 
-  // Build JWT for service account (RS256)
-  const header  = base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const payload = base64url(JSON.stringify(claim));
-  const signing  = `${header}.${payload}`;
-
-  const der      = pemToDer(sa.private_key);
-  const derArray = new Uint8Array(der).buffer as ArrayBuffer;
-  const key = await crypto.subtle.importKey(
-    'pkcs8',
-    derArray,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(signing));
-  const assertion = `${signing}.${base64url(sig)}`;
-
-  const res  = await fetch(sa.token_uri, {
+  const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion }),
+    body: new URLSearchParams({
+      client_id:     GOOGLE_CLIENT_ID,
+      client_secret: GOOGLE_CLIENT_SECRET,
+      refresh_token: GOOGLE_REFRESH_TOKEN,
+      grant_type:    'refresh_token',
+    }),
   });
-  const data = await res.json() as { access_token: string; expires_in: number };
+  const data = await res.json() as { access_token: string; expires_in: number; error?: string };
+  if (data.error) throw new Error(`OAuth token refresh failed: ${data.error}`);
   _accessToken = data.access_token;
   _tokenExpiry  = Date.now() + data.expires_in * 1000;
   return _accessToken;
@@ -136,14 +119,3 @@ export async function setPublicReadable(driveId: string): Promise<void> {
   });
 }
 
-// ---- Helpers ----
-
-function base64url(input: string | ArrayBuffer | Uint8Array): string {
-  if (typeof input === 'string') return Buffer.from(input).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-  return Buffer.from(input as Uint8Array).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
-function pemToDer(pem: string): Buffer {
-  const b64 = pem.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
-  return Buffer.from(b64, 'base64');
-}
