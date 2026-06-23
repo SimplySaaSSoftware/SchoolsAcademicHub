@@ -9,9 +9,8 @@ export class HttpError extends Error {
 }
 
 export function requireAuth(req: HttpRequest): JwtPayload {
-  const auth = req.headers.get('authorization') ?? '';
-  if (!auth.startsWith('Bearer ')) throw new HttpError(401, 'Missing auth token');
-  const token = auth.slice(7);
+  const token = req.headers.get('x-auth-token') ?? '';
+  if (!token) throw new HttpError(401, 'Missing auth token');
   try {
     return verifyToken(token);
   } catch {

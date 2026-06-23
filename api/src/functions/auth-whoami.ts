@@ -2,8 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/fu
 import * as jwt from 'jsonwebtoken';
 
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
-  const auth = req.headers.get('authorization') ?? '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  const token = req.headers.get('x-auth-token') ?? null;
 
   const envCheck = {
     JWT_SECRET:               !!process.env.JWT_SECRET,

@@ -2,7 +2,7 @@ async function apiFetch(path, options = {}) {
   const token = getToken();
   const headers = {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(token ? { 'X-Auth-Token': token } : {}),
     ...(options.headers ?? {}),
   };
 
