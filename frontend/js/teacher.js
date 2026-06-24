@@ -208,14 +208,32 @@
       quillEditor = new Quill('#quill-editor', {
         theme: 'snow',
         placeholder: 'Write lesson content here…',
-        modules: { toolbar: [
-          [{ header: [1, 2, 3, false] }],
-          ['bold', 'italic', 'underline', 'strike'],
-          [{ color: [] }, { background: [] }],
-          [{ list: 'ordered' }, { list: 'bullet' }],
-          ['blockquote', 'link', 'image'],
-          ['clean'],
-        ]},
+        modules: { toolbar: {
+          container: [
+            [{ header: [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ color: [] }, { background: [] }],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            ['blockquote', 'link', 'image'],
+            ['clean'],
+          ],
+          handlers: {
+            image() {
+              const input = document.createElement('input');
+              input.type = 'file'; input.accept = 'image/*'; input.click();
+              input.onchange = () => {
+                const file = input.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                  const range = quillEditor.getSelection(true);
+                  quillEditor.insertEmbed(range ? range.index : 0, 'image', e.target.result);
+                };
+                reader.readAsDataURL(file);
+              };
+            },
+          },
+        }},
       });
       if (post?.content_html) {
         quillEditor.clipboard.dangerouslyPasteHTML(post.content_html);
@@ -618,8 +636,9 @@
   }
 
   function attachImageResizePicker(qed, onResize) {
-    qed.root.addEventListener('click', (e) => {
+    qed.root.addEventListener('mousedown', (e) => {
       if (e.target.tagName !== 'IMG') return;
+      e.preventDefault(); // prevent Quill caret placement interfering
       const img = e.target;
       document.querySelectorAll('.img-resize-bar').forEach((el) => el.remove());
       const bar = document.createElement('div');
@@ -639,8 +658,8 @@
           onResize();
         });
       });
-      const dismiss = (ev) => { if (!bar.contains(ev.target) && ev.target !== img) { bar.remove(); document.removeEventListener('click', dismiss); } };
-      setTimeout(() => document.addEventListener('click', dismiss), 0);
+      const dismiss = (ev) => { if (!bar.contains(ev.target) && ev.target !== img) { bar.remove(); document.removeEventListener('mousedown', dismiss); } };
+      setTimeout(() => document.addEventListener('mousedown', dismiss), 0);
     });
   }
 
