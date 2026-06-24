@@ -222,7 +222,7 @@ select.form-control { appearance: auto; }
 .post-view { max-width: 820px; margin: 0 auto; padding: 1rem; }
 .post-view__title { font-size: 1.6rem; font-weight: 700; margin-bottom: .3rem; }
 .post-view__meta  { color: var(--text-light); font-size: .875rem; margin-bottom: 1.25rem; }
-.post-content     { line-height: 1.7; }
+.post-content     { line-height: 1.7; background: #fff; border-radius: var(--radius); padding: 1.5rem 1.75rem; box-shadow: 0 1px 4px rgba(0,0,0,.07); margin-bottom: 1.25rem; }
 .post-content h1, .post-content h2, .post-content h3 { margin: 1.2em 0 .5em; }
 .post-content p   { margin-bottom: .75em; }
 .post-content ul, .post-content ol { margin: .5em 0 .75em 1.5rem; }
