@@ -89,6 +89,7 @@ export interface PostDoc extends BaseDoc {
   content_html: string;
   attachments_json: string;
   quiz_json: string;
+  quiz_hide_content?: boolean;
   status: 'draft' | 'published';
   author_id: string;
   author_name: string;
