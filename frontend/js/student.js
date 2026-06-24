@@ -140,6 +140,36 @@
 
   // ── Quiz renderer ───────────────────────────────────────────
   function renderQuiz(questions, post) {
+    // Restore content visibility when returning to start screen
+    if (post.quiz_hide_content) {
+      const content = document.getElementById('post-content');
+      const attachSection = content?.nextElementSibling;
+      if (content) content.hidden = false;
+      if (attachSection && attachSection.classList.contains('attachments')) attachSection.hidden = false;
+    }
+
+    const section = document.getElementById('quiz-section');
+
+    // Show teaser with Start button — questions hidden until student is ready
+    section.innerHTML = `
+      <div class="quiz-card">
+        <h2 class="quiz-title">Quiz</h2>
+        <p style="color:var(--text-light);margin-bottom:1rem">${questions.length} question${questions.length !== 1 ? 's' : ''}</p>
+        <button id="btn-start-quiz" class="btn btn--primary" style="width:100%;padding:.75rem">▶ Start Quiz</button>
+      </div>`;
+
+    document.getElementById('btn-start-quiz').addEventListener('click', () => startQuiz(questions, post));
+  }
+
+  function startQuiz(questions, post) {
+    // Hide post content and attachments if teacher enabled the option
+    if (post.quiz_hide_content) {
+      const content = document.getElementById('post-content');
+      const attachSection = content?.nextElementSibling;
+      if (content) content.hidden = true;
+      if (attachSection && attachSection.classList.contains('attachments')) attachSection.hidden = true;
+    }
+
     const section = document.getElementById('quiz-section');
 
     // Show teaser with Start button — questions hidden until student is ready

@@ -184,6 +184,10 @@
               <h3 class="quiz-builder__title">Quiz</h3>
               <button id="btn-add-question" class="btn btn--secondary btn--sm">+ Question</button>
             </div>
+            <label class="quiz-hide-toggle" style="display:flex;align-items:center;gap:.5rem;margin:.5rem 0 .75rem;font-size:.85rem;cursor:pointer">
+              <input type="checkbox" id="f-quiz-hide-content" ${post?.quiz_hide_content ? 'checked' : ''}/>
+              Hide post content while quiz is active
+            </label>
             <div id="quiz-questions"></div>
           </div>
         </div>
@@ -232,6 +236,7 @@
       content_html:     quillEditor ? quillEditor.root.innerHTML : (existingPost?.content_html ?? ''),
       attachments_json: JSON.stringify(getAttachments()),
       quiz_json:        JSON.stringify(quizQuestions),
+      quiz_hide_content: document.getElementById('f-quiz-hide-content')?.checked ?? false,
     };
   }
 

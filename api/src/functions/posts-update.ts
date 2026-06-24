@@ -13,7 +13,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
 
     const body    = await req.json() as Partial<PostDoc>;
     const now     = new Date().toISOString();
-    const changed = (['title','grade','subject','term','content_html','attachments_json','quiz_json'] as (keyof PostDoc)[])
+    const changed = (['title','grade','subject','term','content_html','attachments_json','quiz_json','quiz_hide_content'] as (keyof PostDoc)[])
       .filter((f) => body[f] !== undefined && body[f] !== post[f]);
 
     const audit = [...post.audit];
@@ -34,6 +34,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       content_html: body.content_html ?? post.content_html,
       attachments_json: body.attachments_json ?? post.attachments_json,
       quiz_json: body.quiz_json ?? post.quiz_json,
+      quiz_hide_content: body.quiz_hide_content !== undefined ? body.quiz_hide_content : post.quiz_hide_content,
       status: body.status ?? post.status,
       updated_at: now, updated_by_id: jwt.user_id, updated_by_name: jwt.name,
       ...publishedFields,
