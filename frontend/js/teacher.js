@@ -472,6 +472,34 @@
       if (q.question) qed.clipboard.dangerouslyPasteHTML(q.question);
       qed.on('text-change', () => { quizQuestions[idx].question = qed.root.innerHTML; });
       quizEditors[idx] = qed;
+
+      // Image click → show width picker overlay
+      qed.root.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'IMG') return;
+        const img = e.target;
+        document.querySelectorAll('.img-resize-bar').forEach((el) => el.remove());
+        const bar = document.createElement('div');
+        bar.className = 'img-resize-bar';
+        bar.innerHTML = '<span style="font-size:.75rem;opacity:.7;margin-right:.5rem">Width:</span>' +
+          ['25%','50%','75%','100%'].map((w) => `<button data-w="${w}">${w}</button>`).join('');
+        bar.style.cssText = 'position:absolute;background:#fff;border:1px solid #ccc;border-radius:4px;padding:4px 6px;display:flex;align-items:center;gap:4px;z-index:100;box-shadow:0 2px 6px rgba(0,0,0,.15)';
+        document.body.appendChild(bar);
+        const r = img.getBoundingClientRect();
+        bar.style.top  = `${r.bottom + window.scrollY + 4}px`;
+        bar.style.left = `${r.left  + window.scrollX}px`;
+        bar.querySelectorAll('button').forEach((btn) => {
+          btn.style.cssText = 'padding:2px 6px;border:1px solid #ccc;border-radius:3px;background:#f5f5f5;cursor:pointer;font-size:.8rem';
+          btn.addEventListener('click', () => {
+            img.style.width = btn.dataset.w;
+            img.style.height = 'auto';
+            bar.remove();
+            qed.root.dispatchEvent(new Event('input'));
+            quizQuestions[idx].question = qed.root.innerHTML;
+          });
+        });
+        const dismiss = (ev) => { if (!bar.contains(ev.target) && ev.target !== img) { bar.remove(); document.removeEventListener('click', dismiss); } };
+        setTimeout(() => document.addEventListener('click', dismiss), 0);
+      });
     });
   }
 
