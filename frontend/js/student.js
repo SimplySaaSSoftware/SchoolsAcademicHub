@@ -141,10 +141,25 @@
   // ── Quiz renderer ───────────────────────────────────────────
   function renderQuiz(questions, post) {
     const section = document.getElementById('quiz-section');
+
+    // Show teaser with Start button — questions hidden until student is ready
+    section.innerHTML = `
+      <div class="quiz-card">
+        <h2 class="quiz-title">Quiz</h2>
+        <p style="color:var(--text-light);margin-bottom:1rem">${questions.length} question${questions.length !== 1 ? 's' : ''}</p>
+        <button id="btn-start-quiz" class="btn btn--primary" style="width:100%;padding:.75rem">▶ Start Quiz</button>
+      </div>`;
+
+    document.getElementById('btn-start-quiz').addEventListener('click', () => startQuiz(questions, post));
+  }
+
+  function startQuiz(questions, post) {
+    const section = document.getElementById('quiz-section');
     let html = '<div class="quiz-card"><h2 class="quiz-title">Quiz</h2>';
     questions.forEach((q, i) => {
+      const questionHtml = q.question.includes('<') ? sanitize(q.question) : esc(q.question);
       html += `<div class="quiz-question" data-index="${i}">
-        <p class="quiz-question__text"><strong>Q${i + 1}.</strong> ${esc(q.question)}</p>
+        <div class="quiz-question__text"><strong>Q${i + 1}.</strong> ${questionHtml}</div>
         <div class="quiz-options">`;
       (q.options || []).forEach((opt, oi) => {
         html += `<label class="quiz-option">
@@ -155,7 +170,7 @@
       html += '</div></div>';
     });
     html += `<div id="quiz-result" hidden></div>
-      <button id="btn-submit-quiz" class="btn btn--primary" style="margin-top:1rem;">Submit Quiz</button>
+      <button id="btn-submit-quiz" class="btn btn--primary" style="margin-top:1rem;width:100%">Submit Quiz</button>
     </div>`;
     section.innerHTML = html;
 

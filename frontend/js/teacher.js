@@ -122,6 +122,7 @@
   // ── Editor ──────────────────────────────────────────────────
   let quillEditor = null;
   let quizQuestions = [];
+  let quizEditors = {}; // idx -> Quill instance for each question
 
   function showEditor(post) {
     const isEdit   = !!post;
@@ -391,6 +392,7 @@
 
   // ── Quiz builder ─────────────────────────────────────────────
   function renderQuizBuilder() {
+    quizEditors = {}; // old Quill instances orphaned — let GC clean up
     const container = document.getElementById('quiz-questions');
     container.innerHTML = '';
     if (!quizQuestions.length) {
@@ -410,7 +412,7 @@
         <span class="quiz-q-card__num">Q${idx + 1}</span>
         <button class="btn btn--danger btn--sm quiz-q-del" data-idx="${idx}">&times;</button>
       </div>
-      <input class="form-control quiz-q-text" placeholder="Question text" value="${esc(q.question ?? '')}"/>
+      <div class="quiz-q-editor" id="quiz-q-editor-${idx}" style="min-height:70px;background:#fff;margin-bottom:.5rem"></div>
       <div class="quiz-q-options">
         ${(q.options || ['', '', '', '']).map((opt, oi) => `
           <div class="quiz-opt-row">
@@ -420,8 +422,6 @@
       </div>
       <p style="font-size:.75rem;color:#888;margin-top:.25rem">Select the correct answer with the radio button.</p>`;
 
-    // Wire up live updates
-    div.querySelector('.quiz-q-text').addEventListener('input', (e) => { quizQuestions[idx].question = e.target.value; });
     div.querySelectorAll('.quiz-opt-row').forEach((row, oi) => {
       row.querySelector('input[type="text"]').addEventListener('input', (e) => {
         if (!quizQuestions[idx].options) quizQuestions[idx].options = [];
@@ -434,6 +434,40 @@
       renderQuizBuilder();
     });
     container.appendChild(div);
+
+    // Quill rich text editor for question (supports image embedding)
+    loadQuill(() => {
+      const qed = new Quill(`#quiz-q-editor-${idx}`, {
+        theme: 'snow',
+        placeholder: 'Question text (tap 🖼 to add an image)…',
+        modules: {
+          toolbar: {
+            container: [['bold', 'italic'], ['image']],
+            handlers: {
+              image() {
+                const input = document.createElement('input');
+                input.type  = 'file';
+                input.accept = 'image/*';
+                input.click();
+                input.onchange = () => {
+                  const file = input.files[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = (e) => {
+                    const range = qed.getSelection(true);
+                    qed.insertEmbed(range ? range.index : 0, 'image', e.target.result);
+                  };
+                  reader.readAsDataURL(file);
+                };
+              },
+            },
+          },
+        },
+      });
+      if (q.question) qed.clipboard.dangerouslyPasteHTML(q.question);
+      qed.on('text-change', () => { quizQuestions[idx].question = qed.root.innerHTML; });
+      quizEditors[idx] = qed;
+    });
   }
 
   function addQuestion() {
@@ -463,7 +497,7 @@
           <div class="post-content">${sanitize(post?.content_html ?? '')}</div>
           ${links.length ? `<div class="attachments"><h4>Attachments</h4>${links.map((a) => renderAttachmentItem(a)).join('')}</div>` : ''}
           ${questions.length ? `<div class="quiz-card"><h3 class="quiz-title">Quiz</h3>${questions.map((q, i) => `
-            <div class="quiz-question"><p class="quiz-question__text"><strong>Q${i+1}.</strong> ${esc(q.question)}</p>
+            <div class="quiz-question"><div class="quiz-question__text"><strong>Q${i+1}.</strong> ${q.question?.includes('<') ? sanitize(q.question) : esc(q.question ?? '')}</div>
             <div class="quiz-options">${(q.options||[]).map((o, oi) => `<label class="quiz-option"><input type="radio" name="pq${i}" value="${oi}"/><span>${esc(o)}</span></label>`).join('')}</div>
             </div>`).join('')}
             <button class="btn btn--primary" style="margin-top:1rem" disabled>Submit Quiz</button>
