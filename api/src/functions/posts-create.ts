@@ -29,6 +29,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       content_html:     body.content_html ?? '',
       attachments_json: body.attachments_json ?? '[]',
       quiz_json:        body.quiz_json ?? '[]',
+      quiz_hide_content: body.quiz_hide_content ?? false,
       status,
       author_id:        jwt.user_id,
       author_name:      jwt.name ?? jwt.user_id,

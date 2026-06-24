@@ -184,6 +184,14 @@
   }
 
   function startQuiz(questions, post) {
+    // Hide post content and attachments if teacher enabled the option
+    if (post.quiz_hide_content) {
+      const content = document.getElementById('post-content');
+      const attachSection = content?.nextElementSibling;
+      if (content) content.hidden = true;
+      if (attachSection && attachSection.classList.contains('attachments')) attachSection.hidden = true;
+    }
+
     const section = document.getElementById('quiz-section');
     let html = '<div class="quiz-card"><h2 class="quiz-title">Quiz</h2>';
     questions.forEach((q, i) => {
