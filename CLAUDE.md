@@ -68,6 +68,9 @@ Each subject has an English and an Afrikaans display name (`SubjectDoc.names`), 
 ## Student dashboard
 Individual students get a progress summary and **To do / Done / All** tabs (default To do), grouped by subject, with the best quiz score and attempt count on each card. `GET /posts` adds `progress` per post for individual students only (opened, attempts, best, last, passed); shared grade PINs get none and see everything. A quiz counts as done when passed (80%+, same pass mark as `activity-quiz-attempt`); a post without a quiz is done once opened.
 
+## Translations and images
+Images are language-neutral: a translation's images always follow the original (`withSyncedImages`, applied whenever translated text is shown and again when the original is saved). The out-of-date check ignores images (`sourceHash` strips them), so replacing an image keeps a verified translation verified, while any text change or adding/removing an image makes it out of date until a teacher re-checks it.
+
 ## Quiz grading
 Graded on the server only. Students receive questions and options without `correct_index` (`posts-get`, `posts-list`). `POST /activity/quiz-attempt` takes `{post_id, selections[], lang}`, computes the score from the stored quiz, and returns per-question correct answers only after submitting. Any client-sent score is ignored.
 
@@ -85,6 +88,8 @@ Graded on the server only. Students receive questions and options without `corre
 | `SUPER_ADMIN_PASSWORD_HASH` | bcrypt hash (rounds 12) of super admin password |
 | `RESEND_API_KEY` | Resend API key for transactional emails |
 | `RESEND_FROM` | From address for emails |
+| `DRIVE_ROOT_FOLDER_ID` | Google Drive folder that holds uploaded attachments |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN` | Google OAuth for Drive uploads (`api/src/lib/drive.ts`). If uploads fail with "Google rejected the saved refresh token", create a new refresh token |
 | `ANTHROPIC_API_KEY` | Claude API key for AI translation (English ⇄ Afrikaans). Without it the Generate button returns a clear error; manual translation still works |
 | `ANTHROPIC_MODEL` | Optional. Model for AI translation (default `claude-sonnet-5-5`) |
 

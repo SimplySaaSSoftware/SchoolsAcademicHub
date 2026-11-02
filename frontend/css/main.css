@@ -607,3 +607,10 @@ summary.subject-heading > span:first-child { flex: 1; }
 .import-counts strong { display: block; font-size: 1.5rem; color: var(--primary); }
 .import-counts span { font-size: .875rem; color: var(--text-light); }
 .import-counts--bad strong { color: #a33; }
+
+/* ── Notifications: errors stay readable and copyable ─── */
+.notification--error { cursor: pointer; user-select: text; -webkit-user-select: text; padding-right: 2.5rem; position: fixed; }
+.notification--error::after { content: '✕'; position: absolute; right: .9rem; top: .7rem; opacity: .8; }
+@media (max-width: 600px) {
+  .notification { left: 1rem; right: 1rem; max-width: none; font-size: 1rem; }
+}

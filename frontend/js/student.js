@@ -38,12 +38,17 @@
   renderHeaderGrade();
   applyI18n();
 
+  let _notifyTimer;
   function showNotify(msg, isError = false) {
     notify.textContent = msg;
     notify.className   = `notification${isError ? ' notification--error' : ''}`;
     notify.hidden      = false;
-    setTimeout(() => { notify.hidden = true; }, 3500);
+    if (isError) console.error('[Academic Hub]', msg);   // also readable in the browser console
+    clearTimeout(_notifyTimer);
+    // Errors stay long enough to read and copy; tap one to close it
+    _notifyTimer = setTimeout(() => { notify.hidden = true; }, isError ? 20000 : 3500);
   }
+  notify.addEventListener('click', () => { notify.hidden = true; });
 
   // ── Post list ───────────────────────────────────────────────
   let allPosts = [];

@@ -23,8 +23,13 @@ async function getAccessToken(): Promise<string> {
       grant_type:    'refresh_token',
     }),
   });
-  const data = await res.json() as { access_token: string; expires_in: number; error?: string };
-  if (data.error) throw new Error(`OAuth token refresh failed: ${data.error}`);
+  const data = await res.json() as { access_token: string; expires_in: number; error?: string; error_description?: string };
+  if (data.error || !data.access_token) {
+    const why = data.error === 'invalid_grant'
+      ? 'Google rejected the saved refresh token (expired or revoked). An admin must create a new GOOGLE_REFRESH_TOKEN.'
+      : `${data.error ?? 'no access token returned'}${data.error_description ? ' — ' + data.error_description : ''}`;
+    throw new Error(`Google Drive sign-in failed: ${why}`);
+  }
   _accessToken = data.access_token;
   _tokenExpiry  = Date.now() + data.expires_in * 1000;
   return _accessToken;
