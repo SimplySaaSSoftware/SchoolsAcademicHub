@@ -2,7 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/fu
 import { getItemById } from '../lib/db';
 import { subjectNameMap, namesFor } from '../lib/subjects';
 import { localizePost, isLang, originalLang, otherLang, translationState } from '../lib/translation';
-import { requireAuth, requireSchoolMatch, errorResponse, HttpError, assertPostAccess } from '../lib/middleware';
+import { requireAuth, requireSchoolMatch, errorResponse, HttpError, assertPostAccess, studentSubjects } from '../lib/middleware';
 import { PostDoc } from '../types';
 
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
@@ -13,6 +13,8 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     await assertPostAccess(jwt, post);
     if (jwt.role === 'student' && (post.status !== 'published' || (jwt.grade && Number(post.grade) !== Number(jwt.grade)))) throw new HttpError(404, 'Post not found');
     if (jwt.role === 'student') {
+      const enrolled = await studentSubjects(jwt);
+      if (enrolled && !enrolled.includes(post.subject)) throw new HttpError(404, 'Post not found');
       const lang = req.query.get('lang');
       const names = namesFor(await subjectNameMap(post.school_id), post.subject);
       return { jsonBody: { ...localizePost(post, isLang(lang) ? lang : null), subject_names: names } };

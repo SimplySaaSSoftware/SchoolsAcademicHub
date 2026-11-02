@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { sql, insertItem, getItemById } from '../lib/db';
-import { requireAuth, requireRole, requireSchoolMatch, errorResponse, effectiveSchoolId, HttpError } from '../lib/middleware';
+import { requireAuth, requireRole, requireSchoolMatch, errorResponse, effectiveSchoolId, HttpError, studentSubjects } from '../lib/middleware';
 import { PostDoc, QuizAttemptDoc } from '../types';
 import { isLang, quizForLang } from '../lib/translation';
 import { randomUUID } from 'crypto';
@@ -25,6 +25,9 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     if (!post || post.status !== 'published') throw new HttpError(404, 'Post not found');
     requireSchoolMatch(jwt, post.school_id);
     if (jwt.grade && Number(post.grade) !== Number(jwt.grade)) throw new HttpError(404, 'Post not found');
+
+    const enrolled = await studentSubjects(jwt);
+    if (enrolled && !enrolled.includes(post.subject)) throw new HttpError(404, 'Post not found');
 
     const lang = isLang(body.lang) ? body.lang : null;
     const quiz = quizForLang(post, lang);

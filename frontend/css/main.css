@@ -600,3 +600,10 @@ summary.subject-heading > span:first-child { flex: 1; }
 .subject-form { display: grid; grid-template-columns: 1fr; gap: .25rem .75rem; margin-bottom: 1.25rem; max-width: 560px; }
 .subject-form .btn { justify-self: start; }
 @media (min-width: 601px) { .subject-form { grid-template-columns: 1fr 1fr; } .subject-form .btn { grid-column: 1 / -1; } }
+
+/* ── Students: Excel import summary ───────────────────── */
+.import-counts { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; text-align: center; }
+.import-counts > div { background: var(--bg); border-radius: var(--radius); padding: .6rem .25rem; }
+.import-counts strong { display: block; font-size: 1.5rem; color: var(--primary); }
+.import-counts span { font-size: .875rem; color: var(--text-light); }
+.import-counts--bad strong { color: #a33; }
