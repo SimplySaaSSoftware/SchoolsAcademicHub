@@ -54,9 +54,12 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       WHERE school_id = ${school.school_id} AND type = 'user'
         AND data->>'email' = ${body.email.toLowerCase().trim()}
         AND (data->>'active')::boolean = true`;
-    const user = rows[0]?.data;
+    // Duplicate emails can exist from before uniqueness was enforced: accept whichever account the password belongs to
+    let user: UserDoc | undefined;
+    for (const r of rows) {
+      if (await verifyPassword(body.password, r.data.password_hash)) { user = r.data; break; }
+    }
     if (!user) throw new HttpError(401, 'Invalid credentials');
-    if (!(await verifyPassword(body.password, user.password_hash))) throw new HttpError(401, 'Invalid credentials');
 
     const token = signToken(
       { school_id: school.school_id, user_id: user.id, role: user.role, grade: user.grade, name: user.name },
