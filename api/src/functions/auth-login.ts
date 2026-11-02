@@ -47,7 +47,8 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
           { school_id: school.school_id, user_id: st.id, role: 'student', grade: st.grade, name: st.name },
           studentExpiry('student')
         );
-        return { jsonBody: buildResponse(token, 'student', st.grade, st.name, school) };
+        // individual: a real student profile (not a shared grade PIN), so the portal can greet them by name
+        return { jsonBody: { ...buildResponse(token, 'student', st.grade, st.name, school), individual: true } };
       }
 
       const rows = await sql<{ data: PinDoc }[]>`

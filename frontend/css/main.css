@@ -471,3 +471,62 @@ select.form-control { appearance: auto; }
 .student-row__meta { font-size: .875rem; color: var(--text-light); }
 .student-row__actions { display: flex; flex-wrap: wrap; gap: .4rem; }
 .student-row__actions .btn { min-height: 44px; }
+
+/* ── Student header: name centred ─────────────────────── */
+.site-header--student { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; column-gap: .75rem; }
+.site-header--student .site-header__brand { flex: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.site-header--student .site-header__actions { justify-self: end; }
+.site-header__user {
+  grid-column: 2; justify-self: center; max-width: 100%; min-width: 0;
+  font-weight: 600; font-size: 1.05rem; text-align: center;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.site-header__user[hidden] { display: none; }
+@media (max-width: 600px) {
+  /* phone: brand + actions on the first row, the student's name on its own centred row */
+  .site-header--student { grid-template-columns: 1fr auto; row-gap: .35rem; }
+  .site-header--student .site-header__brand { grid-column: 1; grid-row: 1; }
+  .site-header--student .site-header__actions { grid-column: 2; grid-row: 1; }
+  .site-header__user {
+    grid-column: 1 / -1; grid-row: 2; width: 100%;
+    padding-top: .35rem; border-top: 1px solid rgba(255,255,255,.25); font-size: 1.1rem;
+  }
+}
+
+/* ── Mobile rules (≤600px): last in the file so they win ─ */
+@media (max-width: 600px) {
+  /* Tap targets ≥ 44px everywhere */
+  .btn, .btn--sm { min-height: 44px; font-size: .9375rem; }
+  .btn--sm { padding: .5rem .8rem; }
+  .tab-btn { min-height: 44px; font-size: .9375rem; }
+  .form-control, select.form-control, input.form-control { min-height: 44px; font-size: 1rem; }
+  .link-action { display: inline-block; padding: .6rem 0; }
+  .tag { padding: 0 0 0 .9rem; min-height: 44px; }
+  .tag__del { min-width: 44px; min-height: 44px; font-size: 1.25rem; }
+  .lang-tab, .lang-switch__btn { min-height: 44px; }
+
+  /* Legible text */
+  .form-label { font-size: .9375rem; }
+  .badge, .grade-badge, .lang-chip { font-size: .8125rem; }
+  .stat-card__label { font-size: .875rem; }
+  .post-card__meta, .title-alt, .student-row__meta, .pin-row__grade { font-size: .9375rem; }
+  .table th, .table--sm th, .table--sm td { font-size: .875rem; }
+  .tr-note, .tr-panel__msg, .tr-hint { font-size: .9375rem; }
+
+  /* Tables become stacked cards (cells labelled by mobile.js) */
+  .table--stack { min-width: 0; display: block; }
+  .table--stack thead { display: none; }
+  .table--stack tbody, .table--stack tr, .table--stack td { display: block; }
+  .table--stack tr { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: .6rem 0; padding: .35rem .85rem; }
+  .table--stack tbody tr:hover { background: var(--surface); }
+  .table--stack td { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .45rem 0; border: 0; text-align: right; overflow-wrap: anywhere; font-size: .9375rem; }
+  .table--stack td::before { content: attr(data-label); flex: 0 0 34%; text-align: left; font-weight: 600; font-size: .875rem; color: var(--text-light); }
+  .table--stack td[data-label=""]::before, .table--stack td:not([data-label])::before { content: none; }
+  .table--stack td[colspan] { display: block; text-align: center; }
+  .table--stack td.table-actions { display: flex; flex-wrap: wrap; justify-content: flex-start; text-align: left; padding-top: .6rem; }
+}
+
+/* ── Login links: real tap targets, readable ──────────── */
+.login-link { display: inline-block; padding: .75rem .5rem; min-height: 44px; font-size: 1rem; }
+.login-footer { font-size: .875rem; }
+.link-action { padding: .7rem 0; }

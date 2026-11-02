@@ -20,6 +20,14 @@
     sessionStorage.setItem(_brandKey, _color);
   } catch {}
 
+  // Greet individual students by name (shared grade PINs have no personal name)
+  const nameEl = document.getElementById('student-name');
+  if (nameEl && session.individual && session.name) {
+    nameEl.textContent = session.name;
+    nameEl.title = session.name;
+    nameEl.hidden = false;
+  }
+
   const badge = document.getElementById('grade-badge');
   if (badge && session.grade) badge.textContent = `Grade ${session.grade}`;
   document.getElementById('btn-logout').addEventListener('click', logout);
