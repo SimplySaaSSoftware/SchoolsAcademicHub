@@ -105,7 +105,7 @@
     if (!el) return;
     el.innerHTML = '<p class="drive-card__line">Google Drive: checking…</p>';
     let st;
-    try { st = await apiGet('/google/status'); }
+    try { st = await apiGet(`/google/status?origin=${encodeURIComponent(window.location.origin)}`); }
     catch (e) { el.innerHTML = `<p class="drive-card__line drive-card__line--bad">Google Drive: ${esc(e.message)}</p>`; return; }
 
     const when = st.connected_at ? new Date(st.connected_at).toLocaleDateString('en-ZA', { timeZone: 'Africa/Johannesburg' }) : '';
@@ -136,7 +136,7 @@
 
     document.getElementById('btn-drive-connect')?.addEventListener('click', async (e) => {
       e.target.disabled = true; e.target.textContent = 'Opening Google…';
-      try { const { url } = await apiPost('/google/connect-url', {}); window.location.href = url; }
+      try { const { url } = await apiPost('/google/connect-url', { origin: window.location.origin }); window.location.href = url; }
       catch (err) { showNotify(err.message, true); e.target.disabled = false; e.target.textContent = st.connected ? 'Reconnect Google Drive' : 'Connect Google Drive'; }
     });
     document.getElementById('btn-drive-disconnect')?.addEventListener('click', async () => {

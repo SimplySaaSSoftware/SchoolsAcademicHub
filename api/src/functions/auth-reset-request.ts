@@ -2,6 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/fu
 import { sql, getSchoolBySlug, insertItem } from '../lib/db';
 import { generateResetToken } from '../lib/auth';
 import { sendPasswordReset } from '../lib/resend';
+import { publicBase } from '../lib/site';
 import { errorResponse, HttpError } from '../lib/middleware';
 import { UserDoc, ResetTokenDoc } from '../types';
 import { randomUUID } from 'crypto';
@@ -31,7 +32,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     };
     await insertItem(doc);
 
-    const baseUrl  = process.env.SITE_URL ?? 'https://localhost:4280';
+    const baseUrl  = publicBase(req);
     await sendPasswordReset(user.email, user.name, `${baseUrl}/reset-password?token=${token}&school=${slug}`, school);
     return { jsonBody: { ok: true } };
   } catch (err) {
