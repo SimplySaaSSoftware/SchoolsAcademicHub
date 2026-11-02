@@ -1,5 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { getItemById } from '../lib/db';
+import { subjectNameMap, namesFor } from '../lib/subjects';
 import { localizePost, isLang, originalLang, otherLang, translationState } from '../lib/translation';
 import { requireAuth, requireSchoolMatch, errorResponse, HttpError, assertPostAccess } from '../lib/middleware';
 import { PostDoc } from '../types';
@@ -13,7 +14,8 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     if (jwt.role === 'student' && (post.status !== 'published' || (jwt.grade && Number(post.grade) !== Number(jwt.grade)))) throw new HttpError(404, 'Post not found');
     if (jwt.role === 'student') {
       const lang = req.query.get('lang');
-      return { jsonBody: localizePost(post, isLang(lang) ? lang : null) };
+      const names = namesFor(await subjectNameMap(post.school_id), post.subject);
+      return { jsonBody: { ...localizePost(post, isLang(lang) ? lang : null), subject_names: names } };
     }
     // Staff: full post plus per-language state ('none' | 'draft' | 'verified' | 'stale')
     const orig = originalLang(post);

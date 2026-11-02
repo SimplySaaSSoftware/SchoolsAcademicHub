@@ -1,6 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { sql } from '../lib/db';
 import { originalLang, otherLang } from '../lib/translation';
+import { subjectNameMap, namesFor } from '../lib/subjects';
 import { requireAuth, requireSchoolMatch, errorResponse, effectiveSchoolId, teacherSubjects } from '../lib/middleware';
 
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
@@ -60,6 +61,8 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       }
     }
 
+    const subjectNames = await subjectNameMap(school_id);
+
     return {
       jsonBody: rows.map(({ data, tmeta }) => {
         const orig = originalLang(data);
@@ -73,6 +76,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
         return {
           ...data,
           has_quiz: hasQuiz,
+          subject_names: namesFor(subjectNames, data.subject),
           ...(progress ? { progress: progress.get(data.id) ?? { opened: false, attempts: 0, best: null, last: null, passed: false } } : {}),
           lang: orig,
           available_langs: live ? [orig, other] : [orig],

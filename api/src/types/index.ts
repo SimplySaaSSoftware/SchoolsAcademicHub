@@ -139,7 +139,8 @@ export interface PostDoc extends BaseDoc {
 
 export interface SubjectDoc extends BaseDoc {
   type: 'subject';
-  name: string;
+  name: string;                       // the key posts store in `subject`; never renamed
+  names?: { en?: string; af?: string }; // display names per language
 }
 
 export interface TermDoc extends BaseDoc {

@@ -111,7 +111,7 @@
     shown.forEach((p) => { (bySubject[p.subject] = bySubject[p.subject] || []).push(p); });
     Object.entries(bySubject).forEach(([subject, posts]) => {
       html += `<details class="subject-section" open>
-        <summary class="subject-heading"><span>${esc(subject)}</span><span class="subject-count">${posts.length}</span></summary>
+        <summary class="subject-heading"><span>${esc(subjectName(posts[0]))}</span><span class="subject-count">${posts.length}</span></summary>
         <div class="cards">`;
       posts.forEach((p) => {
         const st = status(p);
@@ -156,6 +156,9 @@
   const LANG_LABEL = { en: 'English', af: 'Afrikaans' };
   const prefLang = () => currentLang();       // one choice drives the interface and the post language
   const setPrefLang = (l) => setUiLang(l);
+
+  // Subject name in the chosen language (set up per subject by the admin); falls back to the stored name
+  const subjectName = (p) => (p.subject_names && p.subject_names[currentLang()]) || p.subject;
 
   // Title shown big: preferred language when the post has it, else the original
   const primaryTitle   = (p) => (prefLang() && p.titles?.[prefLang()]) || p.title;
@@ -214,7 +217,7 @@
             ${post.available_langs.map((l) => `<button class="lang-switch__btn ${l === post.lang ? 'lang-switch__btn--on' : ''}" data-lang="${l}" ${l === post.lang ? 'aria-pressed="true"' : 'aria-pressed="false"'}>${LANG_LABEL[l]}</button>`).join('')}
           </div>` : ''}
         <h1 class="post-view__title">${esc(post.title)}</h1>
-        <p class="post-view__meta">${t('grade')} ${esc(String(post.grade))} &bull; ${esc(post.subject)} &bull; ${t('term')} ${esc(post.term)}</p>
+        <p class="post-view__meta">${t('grade')} ${esc(String(post.grade))} &bull; ${esc(subjectName(post))} &bull; ${t('term')} ${esc(post.term)}</p>
         <div class="post-content" id="post-content">${sanitize(post.content_html ?? '')}</div>
         ${attachHtml}
         ${questions.length ? '<div id="quiz-section"></div>' : ''}
