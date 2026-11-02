@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { sql, insertItem, deleteItemById } from '../lib/db';
-import { requireAuth, requireRole, errorResponse, effectiveSchoolId } from '../lib/middleware';
+import { requireAuth, requireRole, errorResponse, effectiveSchoolId, teacherSubjects } from '../lib/middleware';
 import { SubjectDoc } from '../types';
 import { randomUUID } from 'crypto';
 
@@ -13,7 +13,9 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       const rows = await sql<{ data: SubjectDoc }[]>`
         SELECT data FROM items WHERE school_id = ${schoolId} AND type = 'subject'
         ORDER BY data->>'name' ASC`;
-      return { jsonBody: rows.map((r) => r.data.name) };
+      const names = rows.map((r) => r.data.name);
+      const allowed = await teacherSubjects(jwt);
+      return { jsonBody: allowed ? names.filter((n) => allowed.includes(n)) : names };
     }
 
     requireRole(jwt, ['admin', 'super_admin']);

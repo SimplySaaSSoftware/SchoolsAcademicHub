@@ -43,43 +43,158 @@
     ]);
   }
 
-  // ── Post list ───────────────────────────────────────────────
+  // ── Views: dashboard (per subject/grade) → subject detail → all posts ──
   let allPosts = [];
+  let dash = [];                       // per grade+subject buckets from /dashboard/subjects
+  let view = { name: 'dashboard' };    // { name: 'dashboard' } | { name:'subject', grade, subject } | { name:'all' }
+  let adminGrade = '';                 // admin-only grade filter on the dashboard
 
   async function loadPosts() {
-    main.innerHTML = '<p class="loading-text">Loading posts…</p>';
+    main.innerHTML = '<p class="loading-text">Loading…</p>';
     await loadRefData();
     try {
-      allPosts = await apiGet(`/posts?school_id=${SCHOOL_SLUG}`);
+      [allPosts, dash] = await Promise.all([
+        apiGet(`/posts?school_id=${SCHOOL_SLUG}`),
+        apiGet('/dashboard/subjects').catch(() => []),
+      ]);
     } catch (e) {
-      main.innerHTML = `<p style="color:red;padding:1rem">${e.message}</p>`; return;
+      main.innerHTML = `<p style="color:red;padding:1rem">${esc(e.message)}</p>`; return;
     }
-    renderPostList();
+    renderView();
   }
 
-  function renderPostList() {
+  function renderView() {
+    if (view.name === 'subject') renderSubject(view.grade, view.subject);
+    else if (view.name === 'all') renderPostList(allPosts, { title: 'All Posts', back: true });
+    else renderDashboard();
+  }
+
+  const pctText = (v) => (v == null ? '–' : `${v}%`);
+
+  function renderDashboard() {
+    const isTeacher = session.role === 'teacher';
+    const grades = [...new Set(dash.map((b) => b.grade))].sort((a, b) => a - b);
+    const shown  = dash.filter((b) => isTeacher || !adminGrade || String(b.grade) === adminGrade);
+    const multiGrade = new Set(shown.map((b) => b.grade)).size > 1;
+
+    const tot = shown.reduce((t, b) => ({
+      published: t.published + b.published, drafts: t.drafts + b.drafts,
+      viewers: t.viewers + b.unique_viewers, attempts: t.attempts + b.attempts,
+      scoreSum: t.scoreSum + (b.avg_score ?? 0) * b.attempts,
+    }), { published: 0, drafts: 0, viewers: 0, attempts: 0, scoreSum: 0 });
+    const overallAvg = tot.attempts ? Math.round(tot.scoreSum / tot.attempts) : null;
+
     let html = `
       <div class="page-toolbar">
-        <h1 class="page-title">Posts</h1>
+        <h1 class="page-title">${isTeacher && session.grade ? `Grade ${esc(String(session.grade))} Dashboard` : 'Dashboard'}</h1>
+        <div class="toolbar-actions">
+          <button id="btn-all-posts" class="btn btn--secondary">All Posts</button>
+          <button id="btn-new-post" class="btn btn--primary">+ New Post</button>
+        </div>
+      </div>
+      <div class="dash-wrap">`;
+
+    if (!isTeacher && grades.length > 1) {
+      html += `<div class="dash-filter"><label class="form-label" for="dash-grade">Grade</label>
+        <select id="dash-grade" class="form-control">
+          <option value="">All grades</option>
+          ${grades.map((g) => `<option value="${g}" ${String(g) === adminGrade ? 'selected' : ''}>Grade ${g}</option>`).join('')}
+        </select></div>`;
+    }
+
+    html += `<div class="dash-totals">
+        <div class="stat-card"><span class="stat-card__value">${tot.published}</span><span class="stat-card__label">Published</span></div>
+        <div class="stat-card"><span class="stat-card__value">${tot.drafts}</span><span class="stat-card__label">Drafts</span></div>
+        <div class="stat-card"><span class="stat-card__value">${tot.viewers}</span><span class="stat-card__label">Student views</span></div>
+        <div class="stat-card"><span class="stat-card__value">${pctText(overallAvg)}</span><span class="stat-card__label">Avg quiz score</span></div>
+      </div>`;
+
+    if (!shown.length) {
+      html += '<p class="dash-empty">No posts yet. Tap “+ New Post” to get started.</p>';
+    } else {
+      html += '<div class="dash-grid">';
+      shown.forEach((b) => {
+        html += `
+          <button class="dash-card" data-grade="${esc(String(b.grade))}" data-subject="${esc(b.subject)}">
+            <span class="dash-card__head">
+              <span class="dash-card__title">${esc(b.subject)}</span>
+              ${(!isTeacher || multiGrade) ? `<span class="grade-badge">Grade ${esc(String(b.grade))}</span>` : ''}
+            </span>
+            <span class="dash-card__stats">
+              <span><strong>${b.published}</strong> published</span>
+              <span><strong>${b.drafts}</strong> draft${b.drafts === 1 ? '' : 's'}</span>
+              <span><strong>${b.unique_viewers}</strong> viewers</span>
+              <span><strong>${b.quizzes}</strong> quiz${b.quizzes === 1 ? '' : 'zes'}</span>
+            </span>
+            <span class="dash-card__foot">
+              <span>Avg score <strong>${pctText(b.avg_score)}</strong></span>
+              <span class="dash-card__go">View &rarr;</span>
+            </span>
+          </button>`;
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+    main.innerHTML = html;
+
+    document.getElementById('btn-new-post').addEventListener('click', () => showEditor(null));
+    document.getElementById('btn-all-posts').addEventListener('click', () => { view = { name: 'all' }; renderView(); });
+    document.getElementById('dash-grade')?.addEventListener('change', (e) => { adminGrade = e.target.value; renderDashboard(); });
+    main.querySelectorAll('.dash-card').forEach((el) => el.addEventListener('click', () => {
+      view = { name: 'subject', grade: Number(el.dataset.grade), subject: el.dataset.subject };
+      renderView();
+    }));
+  }
+
+  function renderSubject(grade, subject) {
+    const b = dash.find((x) => x.grade === grade && x.subject === subject);
+    const posts = allPosts.filter((p) => Number(p.grade) === grade && (p.subject || 'Unassigned') === subject);
+    const ps = (id) => b?.posts?.[id] ?? {};
+    renderPostList(posts, {
+      title: `${subject} · Grade ${grade}`,
+      back: true,
+      newDefaults: { grade, subject },
+      summary: b ? `
+        <div class="dash-totals">
+          <div class="stat-card"><span class="stat-card__value">${b.published}</span><span class="stat-card__label">Published</span></div>
+          <div class="stat-card"><span class="stat-card__value">${b.unique_viewers}</span><span class="stat-card__label">Unique viewers</span></div>
+          <div class="stat-card"><span class="stat-card__value">${b.attempts}</span><span class="stat-card__label">Quiz attempts</span></div>
+          <div class="stat-card"><span class="stat-card__value">${pctText(b.avg_score)}</span><span class="stat-card__label">Avg score</span></div>
+          <div class="stat-card"><span class="stat-card__value">${pctText(b.pass_rate)}</span><span class="stat-card__label">Pass rate</span></div>
+        </div>` : '',
+      extraHead: '<th>Viewers</th><th>Attempts</th><th>Avg</th>',
+      extraCells: (p) => `<td>${ps(p.id).unique_viewers ?? 0}</td><td>${ps(p.id).attempts ?? 0}</td><td>${pctText(ps(p.id).avg_score)}</td>`,
+    });
+  }
+
+  function renderPostList(posts, opts = {}) {
+    const extraHead = opts.extraHead ?? '';
+    const cols = 7 + (opts.extraHead ? 3 : 0);
+    let html = `
+      <div class="page-toolbar">
+        ${opts.back ? '<button id="btn-back-dash" class="btn btn--ghost btn--sm">&larr; Dashboard</button>' : ''}
+        <h1 class="page-title">${esc(opts.title ?? 'Posts')}</h1>
         <button id="btn-new-post" class="btn btn--primary">+ New Post</button>
       </div>
+      ${opts.summary ?? ''}
       <div class="table-scroll-wrap"><table class="table" id="posts-table">
         <thead><tr>
           <th>Title</th><th>Grade</th><th>Subject</th><th>Term</th>
-          <th>Status</th><th>Author</th><th></th>
+          <th>Status</th>${extraHead}<th>Author</th><th></th>
         </tr></thead>
         <tbody>`;
 
-    if (!allPosts.length) {
-      html += '<tr><td colspan="7" style="text-align:center;color:#888;padding:2rem">No posts yet.</td></tr>';
+    if (!posts.length) {
+      html += `<tr><td colspan="${cols}" style="text-align:center;color:#888;padding:2rem">No posts yet.</td></tr>`;
     }
-    allPosts.forEach((p) => {
+    posts.forEach((p) => {
       html += `<tr>
         <td><a href="#" class="link-action" data-action="view" data-id="${esc(p.id)}">${esc(p.title)}</a></td>
         <td>${esc(String(p.grade))}</td>
         <td>${esc(p.subject)}</td>
         <td>${esc(p.term)}</td>
         <td><span class="badge badge--${p.status === 'published' ? 'published' : 'draft'}">${esc(p.status)}</span></td>
+        ${opts.extraCells ? opts.extraCells(p) : ''}
         <td>${esc(p.author_name ?? '')}</td>
         <td class="table-actions">
           <button class="btn btn--secondary btn--sm" data-action="preview" data-id="${esc(p.id)}">Preview</button>
@@ -92,7 +207,8 @@
     html += '</tbody></table></div>';
     main.innerHTML = html;
 
-    document.getElementById('btn-new-post').addEventListener('click', () => showEditor(null));
+    document.getElementById('btn-new-post').addEventListener('click', () => showEditor(null, opts.newDefaults));
+    document.getElementById('btn-back-dash')?.addEventListener('click', () => { view = { name: 'dashboard' }; renderView(); });
     main.querySelectorAll('[data-action]').forEach((el) => {
       el.addEventListener('click', (e) => {
         e.preventDefault();
@@ -115,7 +231,7 @@
       await apiDelete(`/posts/${id}`);
       showNotify('Post deleted.');
       allPosts = allPosts.filter((p) => p.id !== id);
-      renderPostList();
+      await loadPosts();
     } catch (e) { showNotify(e.message, true); }
   }
 
@@ -124,15 +240,16 @@
   let quizQuestions = [];
   let quizEditors = {}; // idx -> Quill instance for each question
 
-  function showEditor(post) {
+  function showEditor(post, defaults) {
     const isEdit   = !!post;
+    const pre      = post ?? defaults ?? (session.role === 'teacher' && session.grade ? { grade: session.grade } : {});
     const canPublish = ['admin', 'super_admin'].includes(session.role) || isEdit;
     quizQuestions  = post ? ((() => { try { return JSON.parse(post.quiz_json || '[]'); } catch { return []; } })()) : [];
 
     const gradeOptions = (school.grades ?? [1,2,3,4,5,6,7]).map((g) =>
-      `<option value="${g}" ${post?.grade == g ? 'selected' : ''}>Grade ${g}</option>`).join('');
+      `<option value="${g}" ${pre.grade == g ? 'selected' : ''}>Grade ${g}</option>`).join('');
     const subjectOptions = subjects.map((s) =>
-      `<option value="${esc(s)}" ${post?.subject === s ? 'selected' : ''}>${esc(s)}</option>`).join('');
+      `<option value="${esc(s)}" ${pre.subject === s ? 'selected' : ''}>${esc(s)}</option>`).join('');
     const termOptions = terms.map((t) =>
       `<option value="${esc(t)}" ${post?.term === t ? 'selected' : ''}>${esc(t)}</option>`).join('');
 

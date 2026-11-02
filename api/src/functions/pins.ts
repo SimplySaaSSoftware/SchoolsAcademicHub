@@ -14,11 +14,11 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     if (req.method === 'GET') {
       const rows = await sql<{ data: PinDoc }[]>`
         SELECT data FROM items WHERE school_id = ${schoolId} AND type = 'pin'`;
-      return { jsonBody: rows.map(({ data: p }) => ({ id: p.id, role: p.role, grade: p.grade, label: p.label })) };
+      return { jsonBody: rows.map(({ data: p }) => ({ id: p.id, role: p.role, grade: p.grade, label: p.label, subjects: p.subjects ?? [] })) };
     }
 
     if (req.method === 'POST') {
-      const body = await req.json() as { role: string; grade?: number; pin: string; label: string };
+      const body = await req.json() as { role: string; grade?: number; pin: string; label: string; subjects?: string[] };
       if (!body.role || !body.pin || !body.label) throw new HttpError(400, 'role, pin, and label required');
       if (!/^\d{4,8}$/.test(body.pin)) throw new HttpError(400, 'PIN must be 4-8 digits');
 
@@ -30,6 +30,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
         grade:      body.grade ? Number(body.grade) : undefined,
         pin_hash:   await hashPin(body.pin),
         label:      body.label.trim(),
+        subjects:   Array.isArray(body.subjects) ? [...new Set(body.subjects.map((s) => String(s).trim()).filter(Boolean))] : [],
         created_at: new Date().toISOString(),
       };
       await insertItem(doc);

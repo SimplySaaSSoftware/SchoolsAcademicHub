@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { sql, getItemById } from '../lib/db';
-import { requireAuth, requireRole, errorResponse, HttpError, effectiveSchoolId } from '../lib/middleware';
+import { requireAuth, requireRole, errorResponse, HttpError, effectiveSchoolId, assertPostAccess } from '../lib/middleware';
 import { PostDoc, QuizAttemptDoc } from '../types';
 
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
@@ -12,6 +12,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     const id   = req.params.id;
     const post = await getItemById<PostDoc>(id);
     if (!post) throw new HttpError(404, 'Post not found');
+    await assertPostAccess(jwt, post);
 
     const [viewerRows, attemptRows] = await Promise.all([
       sql<{ student_id: string }[]>`

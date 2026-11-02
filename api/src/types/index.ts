@@ -38,6 +38,7 @@ export interface UserDoc extends BaseDoc {
   password_hash: string;
   name: string;
   grade?: number;
+  subjects?: string[];   // teachers: subjects they may access (empty/absent = all in their grade)
   active: boolean;
 }
 
@@ -49,6 +50,7 @@ export interface PinDoc extends BaseDoc {
   grade?: number;
   pin_hash: string;
   label: string;
+  subjects?: string[];
 }
 
 // ---- Posts ----

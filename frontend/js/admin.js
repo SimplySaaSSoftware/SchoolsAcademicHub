@@ -114,13 +114,14 @@
         <button id="btn-add-user" class="btn btn--primary btn--sm">+ Add User</button>
       </div>
       <table class="table">
-        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Grade</th><th>Active</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Grade</th><th>Subjects</th><th>Active</th><th></th></tr></thead>
         <tbody>`;
-    if (!users.length) html += '<tr><td colspan="6" style="text-align:center;color:#888;padding:1.5rem">No users.</td></tr>';
+    if (!users.length) html += '<tr><td colspan="7" style="text-align:center;color:#888;padding:1.5rem">No users.</td></tr>';
     users.forEach((u) => {
       html += `<tr>
         <td>${esc(u.name)}</td><td>${esc(u.email ?? '')}</td>
         <td>${esc(u.role)}</td><td>${u.grade ?? '—'}</td>
+        <td>${u.role === 'teacher' ? (u.subjects?.length ? esc(u.subjects.join(', ')) : 'All in grade') : '—'}</td>
         <td>${u.active ? 'Yes' : 'No'}</td>
         <td class="table-actions">
           <button class="btn btn--secondary btn--sm" data-action="edit-user" data-id="${esc(u.id)}">Edit</button>
@@ -153,7 +154,20 @@
     });
   }
 
-  function showUserModal(user, allUsers) {
+  // Subject checkboxes (teachers): none ticked = all subjects in their grade
+  async function subjectPicker(selected = []) {
+    const list = await apiGet(`/subjects?school_id=${SCHOOL_SLUG}`).catch(() => []);
+    if (!list.length) return '<p style="color:#888;font-size:.9375rem">No subjects set up yet.</p>';
+    return `<div class="subject-picker">${list.map((n) => `
+      <label class="subject-picker__item">
+        <input type="checkbox" value="${esc(n)}" ${selected.includes(n) ? 'checked' : ''}/> <span>${esc(n)}</span>
+      </label>`).join('')}</div>
+      <p style="color:#888;font-size:.875rem;margin-top:.35rem">Tick none to allow all subjects in the teacher's grade.</p>`;
+  }
+  const pickedSubjects = (modal) => [...modal.querySelectorAll('.subject-picker input:checked')].map((i) => i.value);
+
+  async function showUserModal(user, allUsers) {
+    const subjectHtml = await subjectPicker(user?.subjects ?? []);
     const isEdit = !!user;
     const gradeOpts = (school.grades ?? [1,2,3,4,5,6,7]).map((g) =>
       `<option value="${g}" ${user?.grade == g ? 'selected' : ''}>Grade ${g}</option>`).join('');
@@ -169,10 +183,13 @@
         </select></div>
       <div class="form-group"><label class="form-label">Grade (teachers)</label>
         <select id="u-grade" class="form-control"><option value="">—</option>${gradeOpts}</select></div>
+      <div class="form-group" id="u-subjects-wrap"><label class="form-label">Subjects (teachers)</label>${subjectHtml}</div>
       <div class="form-group"><label class="form-label">${isEdit ? 'New Password (leave blank to keep)' : 'Password *'}</label>
         <input id="u-password" class="form-control" type="password" autocomplete="new-password"/></div>
       <button id="btn-save-user" class="btn btn--primary" style="width:100%">${isEdit ? 'Update' : 'Create'}</button>`);
 
+    const syncSubjects = () => { modal.querySelector('#u-subjects-wrap').hidden = modal.querySelector('#u-role').value !== 'teacher'; };
+    modal.querySelector('#u-role').addEventListener('change', syncSubjects); syncSubjects();
     modal.querySelector('#btn-save-user').addEventListener('click', async () => {
       const body = {
         name:     modal.querySelector('#u-name').value.trim(),
@@ -180,6 +197,7 @@
         role:     modal.querySelector('#u-role').value,
         grade:    modal.querySelector('#u-grade').value ? Number(modal.querySelector('#u-grade').value) : undefined,
         password: modal.querySelector('#u-password').value || undefined,
+        subjects: modal.querySelector('#u-role').value === 'teacher' ? pickedSubjects(modal) : [],
       };
       try {
         if (isEdit) await apiPut(`/users/${user.id}`, body);
@@ -201,12 +219,12 @@
         <button id="btn-add-pin" class="btn btn--primary btn--sm">+ Add PIN</button>
       </div>
       <table class="table">
-        <thead><tr><th>Label</th><th>Role</th><th>Grade</th><th></th></tr></thead>
+        <thead><tr><th>Label</th><th>Role</th><th>Grade</th><th>Subjects</th><th></th></tr></thead>
         <tbody>`;
-    if (!pins.length) html += '<tr><td colspan="4" style="text-align:center;color:#888;padding:1.5rem">No PINs configured.</td></tr>';
+    if (!pins.length) html += '<tr><td colspan="5" style="text-align:center;color:#888;padding:1.5rem">No PINs configured.</td></tr>';
     pins.forEach((p) => {
       html += `<tr>
-        <td>${esc(p.label)}</td><td>${esc(p.role)}</td><td>${p.grade ?? '—'}</td>
+        <td>${esc(p.label)}</td><td>${esc(p.role)}</td><td>${p.grade ?? '—'}</td><td>${p.role === 'teacher' ? (p.subjects?.length ? esc(p.subjects.join(', ')) : 'All in grade') : '—'}</td>
         <td><button class="btn btn--danger btn--sm" data-action="del-pin" data-id="${esc(p.id)}">Delete</button></td>
       </tr>`;
     });
@@ -223,7 +241,8 @@
     });
   }
 
-  function showPinModal() {
+  async function showPinModal() {
+    const subjectHtml = await subjectPicker([]);
     const gradeOpts = (school.grades ?? [1,2,3,4,5,6,7]).map((g) =>
       `<option value="${g}">Grade ${g}</option>`).join('');
     const modal = createModal('Add PIN', `
@@ -236,16 +255,20 @@
         </select></div>
       <div class="form-group"><label class="form-label">Grade (students)</label>
         <select id="p-grade" class="form-control"><option value="">—</option>${gradeOpts}</select></div>
+      <div class="form-group" id="p-subjects-wrap" hidden><label class="form-label">Subjects (teachers)</label>${subjectHtml}</div>
       <div class="form-group"><label class="form-label">PIN (4–8 digits) *</label>
         <input id="p-pin" class="form-control pin-input" type="password" inputmode="numeric" maxlength="8" autocomplete="off" data-lpignore="true"/></div>
       <button id="btn-save-pin" class="btn btn--primary" style="width:100%">Create PIN</button>`);
 
+    const syncPinSubjects = () => { modal.querySelector('#p-subjects-wrap').hidden = modal.querySelector('#p-role').value !== 'teacher'; };
+    modal.querySelector('#p-role').addEventListener('change', syncPinSubjects); syncPinSubjects();
     modal.querySelector('#btn-save-pin').addEventListener('click', async () => {
       const body = {
         label: modal.querySelector('#p-label').value.trim(),
         role:  modal.querySelector('#p-role').value,
         grade: modal.querySelector('#p-grade').value ? Number(modal.querySelector('#p-grade').value) : undefined,
         pin:   modal.querySelector('#p-pin').value.trim(),
+        subjects: modal.querySelector('#p-role').value === 'teacher' ? pickedSubjects(modal) : [],
       };
       try { await apiPost('/pins', body); modal.remove(); showNotify('PIN created.'); renderPins(); }
       catch (e) { showNotify(e.message, true); }

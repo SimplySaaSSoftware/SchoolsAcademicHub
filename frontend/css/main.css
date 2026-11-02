@@ -365,3 +365,38 @@ select.form-control { appearance: auto; }
   .quiz-option { padding: .5rem; }
   .quiz-option input[type="radio"] { width: 1.2rem; height: 1.2rem; }
 }
+
+/* ── Teacher dashboard (mobile-first) ─────────────────── */
+.toolbar-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+.dash-wrap { padding: 1rem; }
+.dash-filter { margin-bottom: 1rem; max-width: 260px; }
+.dash-totals {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: .75rem; padding: 0 0 1rem;
+}
+.page-toolbar + .dash-totals { padding: 1rem 1rem 0; }
+.dash-totals .stat-card { min-width: 0; padding: .9rem .5rem; }
+.dash-grid { display: grid; grid-template-columns: 1fr; gap: .9rem; }
+.dash-card {
+  display: flex; flex-direction: column; gap: .75rem; text-align: left; cursor: pointer;
+  background: var(--surface); border: 0; border-left: 4px solid var(--primary);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 1rem; min-height: 44px; font: inherit; color: var(--text);
+}
+.dash-card:active, .dash-card:focus-visible { outline: 2px solid var(--primary); }
+.dash-card__head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.dash-card__title { font-size: 1.1rem; font-weight: 700; color: var(--primary); }
+.dash-card__stats { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem .75rem; font-size: .9375rem; color: var(--text-light); }
+.dash-card__stats strong, .dash-card__foot strong { color: var(--text); }
+.dash-card__foot { display: flex; justify-content: space-between; font-size: .9375rem; border-top: 1px solid var(--border); padding-top: .6rem; }
+.dash-card__go { color: var(--primary); font-weight: 600; }
+.dash-empty { color: #888; text-align: center; padding: 2rem 1rem; }
+@media (min-width: 601px) {
+  .dash-totals { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+  .dash-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+}
+
+/* ── Subject picker (admin user/PIN modals) ───────────── */
+.subject-picker { display: grid; grid-template-columns: 1fr; gap: .25rem; max-height: 220px; overflow-y: auto; }
+.subject-picker__item { display: flex; align-items: center; gap: .6rem; min-height: 44px; font-size: 1rem; cursor: pointer; }
+.subject-picker__item input { width: 20px; height: 20px; flex-shrink: 0; }
+@media (min-width: 601px) { .subject-picker { grid-template-columns: 1fr 1fr; } }

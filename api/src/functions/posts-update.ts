@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { getItemById, upsertItem } from '../lib/db';
-import { requireAuth, requireRole, requireSchoolMatch, errorResponse, HttpError } from '../lib/middleware';
+import { requireAuth, requireRole, requireSchoolMatch, errorResponse, HttpError, assertPostAccess } from '../lib/middleware';
 import { PostDoc, AuditEntry } from '../types';
 
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
@@ -9,9 +9,12 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     requireRole(jwt, ['teacher', 'admin', 'super_admin']);
     const post = await getItemById<PostDoc>(req.params.id);
     if (!post) throw new HttpError(404, 'Post not found');
-    requireSchoolMatch(jwt, post.school_id);
+    await assertPostAccess(jwt, post);
 
     const body    = await req.json() as Partial<PostDoc>;
+    if (body.subject !== undefined || body.grade !== undefined) {
+      await assertPostAccess(jwt, { school_id: post.school_id, grade: body.grade !== undefined ? Number(body.grade) : post.grade, subject: body.subject ?? post.subject });
+    }
     const now     = new Date().toISOString();
     const changed = (['title','grade','subject','term','content_html','attachments_json','quiz_json','quiz_hide_content'] as (keyof PostDoc)[])
       .filter((f) => body[f] !== undefined && body[f] !== post[f]);

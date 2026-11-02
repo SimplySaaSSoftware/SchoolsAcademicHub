@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { getItemById, deleteItemById } from '../lib/db';
-import { requireAuth, requireRole, requireSchoolMatch, errorResponse, HttpError } from '../lib/middleware';
+import { requireAuth, requireRole, requireSchoolMatch, errorResponse, HttpError, assertPostAccess } from '../lib/middleware';
 import { PostDoc } from '../types';
 
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
@@ -9,7 +9,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     requireRole(jwt, ['teacher', 'admin', 'super_admin']);
     const post = await getItemById<PostDoc>(req.params.id);
     if (!post) throw new HttpError(404, 'Post not found');
-    requireSchoolMatch(jwt, post.school_id);
+    await assertPostAccess(jwt, post);
     if (jwt.role === 'teacher' && post.author_id !== jwt.user_id) throw new HttpError(403, 'You can only delete your own posts');
     await deleteItemById(req.params.id);
     return { status: 204 };
