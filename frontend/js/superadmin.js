@@ -96,10 +96,71 @@
       return;
     }
     renderSchools();
+    announceDriveResult();
+  }
+
+  // ── Google Drive connection (attachments) ─────────────────────
+  async function renderDriveCard() {
+    const el = document.getElementById('drive-card');
+    if (!el) return;
+    el.innerHTML = '<p class="drive-card__line">Google Drive: checking…</p>';
+    let st;
+    try { st = await apiGet('/google/status'); }
+    catch (e) { el.innerHTML = `<p class="drive-card__line drive-card__line--bad">Google Drive: ${esc(e.message)}</p>`; return; }
+
+    const when = st.connected_at ? new Date(st.connected_at).toLocaleDateString('en-ZA', { timeZone: 'Africa/Johannesburg' }) : '';
+    let state, text;
+    if (!st.client_configured || !st.folder_configured) {
+      state = 'bad';
+      text = `Not set up: ${!st.client_configured ? 'GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET' : 'DRIVE_ROOT_FOLDER_ID'} missing in Azure.`;
+    } else if (!st.connected) { state = 'warn'; text = 'Not connected. Attachments cannot be uploaded.'; }
+    else if (!st.healthy) { state = 'bad'; text = st.error || 'Connected, but Google is not accepting it.'; }
+    else {
+      state = 'ok';
+      text = `Connected${st.account_email ? ' as ' + st.account_email : ''}${when ? ' (since ' + when + ')' : ''}. Folder: ${st.folder}.${st.source === 'azure' ? ' Using the older Azure setting.' : ''}`;
+    }
+
+    el.innerHTML = `
+      <div class="drive-card__head"><strong>Google Drive</strong> <span class="drive-card__dot drive-card__dot--${state}"></span></div>
+      <p class="drive-card__line drive-card__line--${state}">${esc(text)}</p>
+      <div class="drive-card__actions">
+        ${st.client_configured && st.folder_configured ? `<button id="btn-drive-connect" class="btn ${state === 'ok' ? 'btn--secondary' : 'btn--primary'}">${st.connected ? 'Reconnect Google Drive' : 'Connect Google Drive'}</button>` : ''}
+        ${st.source === 'database' ? '<button id="btn-drive-disconnect" class="btn btn--ghost" style="color:var(--text);border-color:var(--border)">Disconnect</button>' : ''}
+      </div>
+      ${st.client_configured && state !== 'ok' ? `
+        <details class="drive-card__help"><summary>One-time Google setup</summary>
+          <p>In Google Cloud → Google Auth Platform → <strong>Clients</strong> → your client → <strong>Authorised redirect URIs</strong>, add exactly:</p>
+          <p><code id="drive-redirect">${esc(st.redirect_uri)}</code> <button id="btn-copy-redirect" class="btn btn--secondary btn--sm">Copy</button></p>
+          <p>The app must be <strong>In production</strong> on the Audience page, or Google ends the connection after 7 days.</p>
+        </details>` : ''}`;
+
+    document.getElementById('btn-drive-connect')?.addEventListener('click', async (e) => {
+      e.target.disabled = true; e.target.textContent = 'Opening Google…';
+      try { const { url } = await apiPost('/google/connect-url', {}); window.location.href = url; }
+      catch (err) { showNotify(err.message, true); e.target.disabled = false; e.target.textContent = st.connected ? 'Reconnect Google Drive' : 'Connect Google Drive'; }
+    });
+    document.getElementById('btn-drive-disconnect')?.addEventListener('click', async () => {
+      if (!confirm('Disconnect Google Drive? Attachments cannot be uploaded until you connect again.')) return;
+      try { await apiPost('/google/disconnect', {}); showNotify('Disconnected.'); renderDriveCard(); }
+      catch (err) { showNotify(err.message, true); }
+    });
+    document.getElementById('btn-copy-redirect')?.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(st.redirect_uri); showNotify('Copied.'); } catch { showNotify('Copy failed. Select the address and copy it.', true); }
+    });
+  }
+
+  // Google sends the browser back to /superadmin?drive=connected (or ?drive=error&msg=…)
+  function announceDriveResult() {
+    const q = new URLSearchParams(window.location.search);
+    if (!q.has('drive')) return;
+    if (q.get('drive') === 'connected') showNotify('Google Drive connected.');
+    else showNotify(q.get('msg') || 'Google Drive could not be connected.', true);
+    history.replaceState(null, '', window.location.pathname);
   }
 
   function renderSchools() {
     let html = `
+      <div id="drive-card" class="drive-card"></div>
       <div class="page-toolbar" style="margin-bottom:1.5rem">
         <h1 class="page-title" style="margin:0">Schools</h1>
         <button id="btn-new-school" class="btn btn--primary">+ New School</button>
@@ -131,6 +192,7 @@
     main.innerHTML = html;
 
     document.getElementById('btn-new-school').addEventListener('click', () => showSchoolModal(null));
+    renderDriveCard();
     main.querySelectorAll('[data-action="edit"]').forEach((b) => {
       b.addEventListener('click', () => showSchoolModal(schools.find((s) => s.id === b.dataset.id)));
     });

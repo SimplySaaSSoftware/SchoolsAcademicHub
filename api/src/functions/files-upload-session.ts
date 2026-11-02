@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { ensureFolderPath, createUploadSession } from '../lib/drive';
+import { ensureFolderPath, createUploadSession, driveConfigured } from '../lib/drive';
 import { requireAuth, requireRole, errorResponse, effectiveSchoolId, HttpError } from '../lib/middleware';
 
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
@@ -11,11 +11,8 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     const { filename, mimeType, fileSize, grade, subject } = await req.json() as {
       filename: string; mimeType: string; fileSize: number; grade: number; subject: string;
     };
-    if (!process.env.DRIVE_ROOT_FOLDER_ID) throw new HttpError(500, 'DRIVE_ROOT_FOLDER_ID env var not set');
-    // Drive sign-in uses an OAuth refresh token (see lib/drive.ts), not a service account
-    for (const name of ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REFRESH_TOKEN']) {
-      if (!process.env[name]) throw new HttpError(500, `${name} env var not set (Google Drive sign-in is not configured)`);
-    }
+    const drive = await driveConfigured();
+    if (!drive.ok) throw new HttpError(500, drive.reason!);
 
     if (!filename || !mimeType || !fileSize || !grade || !subject) {
       throw new HttpError(400, 'filename, mimeType, fileSize, grade, subject required');
