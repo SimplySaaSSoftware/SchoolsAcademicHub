@@ -1,12 +1,16 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { sql } from '../lib/db';
-import { requireAuth, requireRole, errorResponse, effectiveSchoolId } from '../lib/middleware';
+import { sql, getItemById } from '../lib/db';
+import { requireAuth, requireRole, errorResponse, effectiveSchoolId, assertPostAccess, HttpError } from '../lib/middleware';
 
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
   try {
     const jwt = requireAuth(req);
     requireRole(jwt, ['teacher', 'admin', 'super_admin']);
     const schoolId = effectiveSchoolId(req, jwt);
+
+    const post = await getItemById<{ school_id: string; grade: number; subject: string }>(req.params.id);
+    if (!post) throw new HttpError(404, 'Post not found');
+    await assertPostAccess(jwt, post);
 
     const rows = await sql<{ data: any }[]>`
       SELECT data FROM items

@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { sql } from '../lib/db';
-import { requireAuth, requireRole, errorResponse, effectiveSchoolId } from '../lib/middleware';
+import { requireAuth, requireRole, errorResponse, effectiveSchoolId, teacherSubjects } from '../lib/middleware';
 
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
   try {
@@ -8,17 +8,19 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     requireRole(jwt, ['teacher', 'admin', 'super_admin']);
     const schoolId = effectiveSchoolId(req, jwt);
 
-    const gradeClause = jwt.role === 'teacher' && jwt.grade
+    const allowed = await teacherSubjects(jwt);
+    const gradeClause = (jwt.role === 'teacher' && jwt.grade
       ? sql` AND (data->>'grade')::int = ${jwt.grade}`
-      : sql``;
+      : sql``);
+    const subjectClause = allowed ? sql` AND data->>'subject' IN ${sql(allowed)}` : sql``;
 
     const [postRows, attemptRows] = await Promise.all([
       sql<{ status: string; quiz_json: string }[]>`
         SELECT data->>'status' AS status, data->>'quiz_json' AS quiz_json FROM items
-        WHERE school_id = ${schoolId} AND type = 'post'${gradeClause}`,
+        WHERE school_id = ${schoolId} AND type = 'post'${gradeClause}${subjectClause}`,
       sql<{ percentage: string }[]>`
         SELECT data->>'percentage' AS percentage FROM items
-        WHERE school_id = ${schoolId} AND type = 'quiz_attempt'${gradeClause}`,
+        WHERE school_id = ${schoolId} AND type = 'quiz_attempt'${gradeClause}${subjectClause}`,
     ]);
 
     const published     = postRows.filter((p) => p.status === 'published');

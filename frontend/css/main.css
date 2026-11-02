@@ -394,3 +394,9 @@ select.form-control { appearance: auto; }
   .dash-totals { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
   .dash-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
 }
+
+/* ── Subject picker (admin user/PIN modals) ───────────── */
+.subject-picker { display: grid; grid-template-columns: 1fr; gap: .25rem; max-height: 220px; overflow-y: auto; }
+.subject-picker__item { display: flex; align-items: center; gap: .6rem; min-height: 44px; font-size: 1rem; cursor: pointer; }
+.subject-picker__item input { width: 20px; height: 20px; flex-shrink: 0; }
+@media (min-width: 601px) { .subject-picker { grid-template-columns: 1fr 1fr; } }

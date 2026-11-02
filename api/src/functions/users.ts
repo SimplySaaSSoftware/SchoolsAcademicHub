@@ -5,6 +5,10 @@ import { hashPassword } from '../lib/auth';
 import { UserDoc } from '../types';
 import { randomUUID } from 'crypto';
 
+function cleanSubjects(v: unknown): string[] {
+  return Array.isArray(v) ? [...new Set(v.map((s) => String(s).trim()).filter(Boolean))] : [];
+}
+
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
   try {
     const jwt = requireAuth(req);
@@ -15,11 +19,11 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       const rows = await sql<{ data: UserDoc }[]>`
         SELECT data FROM items WHERE school_id = ${schoolId} AND type = 'user'
         ORDER BY data->>'name' ASC`;
-      return { jsonBody: rows.map(({ data: u }) => ({ id: u.id, role: u.role, email: u.email, name: u.name, grade: u.grade, active: u.active, created_at: u.created_at })) };
+      return { jsonBody: rows.map(({ data: u }) => ({ id: u.id, role: u.role, email: u.email, name: u.name, grade: u.grade, subjects: u.subjects ?? [], active: u.active, created_at: u.created_at })) };
     }
 
     if (req.method === 'POST') {
-      const body = await req.json() as { email: string; name: string; role: string; grade?: number; password: string; slug?: string };
+      const body = await req.json() as { email: string; name: string; role: string; grade?: number; subjects?: string[]; password: string; slug?: string };
       if (!body.email || !body.name || !body.role || !body.password) throw new HttpError(400, 'email, name, role, and password required');
       if (body.password.length < 8) throw new HttpError(400, 'Password must be at least 8 characters');
       const schoolId = jwt.role === 'super_admin' ? (body.slug ?? effectiveSchoolId(req, jwt)) : effectiveSchoolId(req, jwt);
@@ -34,6 +38,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
         password_hash: await hashPassword(body.password),
         name:          body.name.trim(),
         grade:         body.grade ? Number(body.grade) : undefined,
+        subjects:      cleanSubjects(body.subjects),
         active:        true,
         created_at:    new Date().toISOString(),
       };
@@ -47,6 +52,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       const updates: Partial<UserDoc> = {};
       if (body.name)             updates.name   = body.name.trim();
       if (body.grade)            updates.grade  = Number(body.grade);
+      if (body.subjects !== undefined) updates.subjects = cleanSubjects(body.subjects);
       if (body.active !== undefined) updates.active = body.active;
       if (body.password) {
         if (body.password.length < 8) throw new HttpError(400, 'Password must be at least 8 characters');

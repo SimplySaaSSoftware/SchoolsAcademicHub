@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { insertItem } from '../lib/db';
-import { requireAuth, requireRole, errorResponse, HttpError, effectiveSchoolId } from '../lib/middleware';
+import { requireAuth, requireRole, errorResponse, HttpError, effectiveSchoolId, assertPostAccess } from '../lib/middleware';
 import { PostDoc } from '../types';
 import { randomUUID } from 'crypto';
 
@@ -14,6 +14,8 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     if (!body.title || !body.grade || !body.subject || !body.term) {
       throw new HttpError(400, 'title, grade, subject, and term are required');
     }
+
+    await assertPostAccess(jwt, { school_id: schoolId, grade: Number(body.grade), subject: body.subject });
 
     const now    = new Date().toISOString();
     const status = body.status ?? 'draft';

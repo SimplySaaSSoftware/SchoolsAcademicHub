@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { sql } from '../lib/db';
-import { requireAuth, requireRole, errorResponse, effectiveSchoolId } from '../lib/middleware';
+import { requireAuth, requireRole, errorResponse, effectiveSchoolId, teacherSubjects } from '../lib/middleware';
 
 interface Bucket {
   grade: number;
@@ -42,6 +42,8 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     const grade = jwt.role === 'teacher' && jwt.grade
       ? Number(jwt.grade)
       : (gradeParam ? Number(gradeParam) : null);
+    const allowed = await teacherSubjects(jwt);
+    const subjectClause = allowed ? sql` AND data->>'subject' IN ${sql(allowed)}` : sql``;
     const gradeClause = grade ? sql` AND (data->>'grade')::int = ${grade}` : sql``;
 
     const [postRows, viewRows, attemptRows] = await Promise.all([
@@ -49,16 +51,16 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
         SELECT id, data->>'grade' AS grade, data->>'subject' AS subject,
                data->>'status' AS status, data->>'quiz_json' AS quiz_json
         FROM items
-        WHERE school_id = ${schoolId} AND type = 'post'${gradeClause}`,
+        WHERE school_id = ${schoolId} AND type = 'post'${gradeClause}${subjectClause}`,
       sql<{ post_id: string; student_id: string; ts: string }[]>`
         SELECT data->>'post_id' AS post_id, data->>'student_id' AS student_id, data->>'timestamp' AS ts
         FROM items
-        WHERE school_id = ${schoolId} AND type = 'activity'${gradeClause}`,
+        WHERE school_id = ${schoolId} AND type = 'activity'${gradeClause}${subjectClause}`,
       sql<{ post_id: string; percentage: string; passed: string; ts: string }[]>`
         SELECT data->>'post_id' AS post_id, data->>'percentage' AS percentage,
                data->>'passed' AS passed, data->>'created_at' AS ts
         FROM items
-        WHERE school_id = ${schoolId} AND type = 'quiz_attempt'${gradeClause}`,
+        WHERE school_id = ${schoolId} AND type = 'quiz_attempt'${gradeClause}${subjectClause}`,
     ]);
 
     const buckets = new Map<string, Bucket>();
