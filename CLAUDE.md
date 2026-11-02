@@ -55,6 +55,15 @@ https://polite-island-0106b4103.7.azurestaticapps.net/
 ## Languages (English / Afrikaans)
 A post has an original `lang` (`en`/`af`, absent = `en`). `translations.{lang}` holds text only (title, content_html, quiz question/option text); grading data (`correct_index`) always comes from the original quiz. A translation is `draft` until a teacher verifies it, and becomes `stale` (hidden from students) when the original text changes. Students only ever see verified, non-stale translations. AI drafts via `POST /posts/{id}/translate` (`api/src/lib/ai-translate.ts`).
 
+## Interface language (English / Afrikaans)
+`js/i18n.js` holds all interface text (`STRINGS.en` / `STRINGS.af`). Use `t('key')` in JS and `data-i18n="key"` / `data-i18n-placeholder` in HTML; server error messages go through `tErr()`. One choice (`localStorage hub_lang`) drives the interface AND which version of a post is shown; first visit follows the device language. The EN | AF switch is `mountLangToggle()`. Individual students also save it on their profile (`POST /me/language`, returned at login as `lang`) so it follows them. Covered so far: login, reset-password and the student portal. Teacher, admin and super admin screens are still English only — when adding any new student-facing text, add both languages.
+
+## Subject names
+Each subject has an English and an Afrikaans display name (`SubjectDoc.names`), both required when the admin creates it (admin → Subjects; existing subjects show an "Add Afrikaans" button). `name` is the stored key that posts reference and is never renamed. `GET /posts` and `GET /posts/{id}` add `subject_names {en, af}` and the student portal shows the one for the chosen language, falling back to `name`. Plain `GET /subjects` still returns names only; `?full=1` returns objects with both names.
+
+## Student dashboard
+Individual students get a progress summary and **To do / Done / All** tabs (default To do), grouped by subject, with the best quiz score and attempt count on each card. `GET /posts` adds `progress` per post for individual students only (opened, attempts, best, last, passed); shared grade PINs get none and see everything. A quiz counts as done when passed (80%+, same pass mark as `activity-quiz-attempt`); a post without a quiz is done once opened.
+
 ## Quiz grading
 Graded on the server only. Students receive questions and options without `correct_index` (`posts-get`, `posts-list`). `POST /activity/quiz-attempt` takes `{post_id, selections[], lang}`, computes the score from the stored quiz, and returns per-question correct answers only after submitting. Any client-sent score is ignored.
 

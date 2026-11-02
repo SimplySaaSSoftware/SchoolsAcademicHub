@@ -282,31 +282,57 @@
     });
   }
 
-  // ── Subjects ─────────────────────────────────────────────────
+  // ── Subjects (each has an English and an Afrikaans name) ─────
   async function renderSubjects() {
     let subjects;
-    try { subjects = await apiGet(`/subjects?school_id=${SCHOOL_SLUG}`); }
-    catch (e) { tabEl().innerHTML = `<p style="color:red">${e.message}</p>`; return; }
+    try { subjects = await apiGet(`/subjects?school_id=${SCHOOL_SLUG}&full=1`); }
+    catch (e) { tabEl().innerHTML = `<p style="color:red">${esc(e.message)}</p>`; return; }
 
     tabEl().innerHTML = `
-      <h2 style="margin-bottom:1rem">Subjects</h2>
-      <div style="display:flex;gap:.5rem;margin-bottom:1rem">
-        <input id="new-subject" class="form-control" style="max-width:280px" placeholder="e.g. Mathematics"/>
-        <button id="btn-add-subject" class="btn btn--primary">Add</button>
+      <h2 style="margin-bottom:.5rem">Subjects</h2>
+      <p style="color:#666;font-size:.9375rem;margin:0 0 1rem">Every subject needs both names. Students see the one for the language they chose.</p>
+      <div class="subject-form">
+        <div class="form-group"><label class="form-label" for="new-subject">English name</label>
+          <input id="new-subject" class="form-control" placeholder="e.g. Mathematics" autocomplete="off"/></div>
+        <div class="form-group"><label class="form-label" for="new-subject-af">Afrikaanse naam</label>
+          <input id="new-subject-af" class="form-control" placeholder="bv. Wiskunde" autocomplete="off"/></div>
+        <button id="btn-add-subject" class="btn btn--primary">Add subject</button>
       </div>
-      <ul class="tag-list" id="subject-list">
-        ${subjects.map((s) => `<li class="tag">${esc(s)} <button class="tag__del" data-name="${esc(s)}">&times;</button></li>`).join('')}
-      </ul>`;
+      <div class="student-list" id="subject-list">
+        ${subjects.length ? subjects.map((s) => `
+          <div class="student-row">
+            <div class="student-row__info">
+              <div class="student-row__name">${esc(s.names.en)} <span style="color:#888;font-weight:400">/</span> ${s.names.af ? esc(s.names.af) : '<span class="status-chip status-chip--retry">Afrikaans name missing</span>'}</div>
+            </div>
+            <div class="student-row__actions"><button class="btn btn--secondary btn--sm" data-edit-subject="${esc(s.id)}">${s.names.af ? 'Edit' : 'Add Afrikaans'}</button></div>
+          </div>`).join('') : '<p class="dash-empty">No subjects yet.</p>'}
+      </div>`;
 
     document.getElementById('btn-add-subject').addEventListener('click', async () => {
       const name = document.getElementById('new-subject').value.trim();
-      if (!name) return;
-      try { await apiPost('/subjects', { name }); showNotify('Subject added.'); renderSubjects(); }
+      const name_af = document.getElementById('new-subject-af').value.trim();
+      if (!name || !name_af) { showNotify('Please fill in both the English and the Afrikaans name.', true); return; }
+      try { await apiPost('/subjects', { name, name_af }); showNotify('Subject added.'); renderSubjects(); }
       catch (e) { showNotify(e.message, true); }
     });
-    // Delete by name — look up id from full list (need id from server; refactor: store id in tag)
-    // For now subjects returns names, so we need a separate approach — skip delete for simplicity
-    // (subjects are soft-managed; teachers just stop using them)
+
+    tabEl().querySelectorAll('[data-edit-subject]').forEach((b) => b.addEventListener('click', () => {
+      const s = subjects.find((x) => x.id === b.dataset.editSubject);
+      const modal = createModal('Edit subject names', `
+        <div class="form-group"><label class="form-label">English name</label>
+          <input id="e-subject-en" class="form-control" value="${esc(s.names.en)}"/></div>
+        <div class="form-group"><label class="form-label">Afrikaanse naam</label>
+          <input id="e-subject-af" class="form-control" value="${esc(s.names.af)}" placeholder="bv. Wiskunde"/></div>
+        <p style="color:#888;font-size:.9375rem;margin:0 0 1rem">Existing posts keep working: they are linked to the original name "${esc(s.name)}".</p>
+        <button id="btn-save-subject" class="btn btn--primary" style="width:100%">Save</button>`);
+      modal.querySelector('#btn-save-subject').addEventListener('click', async () => {
+        const name_en = modal.querySelector('#e-subject-en').value.trim();
+        const name_af = modal.querySelector('#e-subject-af').value.trim();
+        if (!name_en || !name_af) { showNotify('Both names are required.', true); return; }
+        try { await apiPut(`/subjects/${s.id}`, { name_en, name_af }); modal.remove(); showNotify('Saved.'); renderSubjects(); }
+        catch (e) { showNotify(e.message, true); }
+      });
+    }));
   }
 
   // ── Terms ────────────────────────────────────────────────────

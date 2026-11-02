@@ -49,6 +49,7 @@ export interface StudentDoc extends BaseDoc {
   name: string;
   grade: number;
   pin_lookup: string;   // HMAC of the PIN with a server secret; the PIN itself is never stored
+  lang?: Lang;          // preferred interface language, follows the student across devices
   active: boolean;
 }
 
@@ -138,7 +139,8 @@ export interface PostDoc extends BaseDoc {
 
 export interface SubjectDoc extends BaseDoc {
   type: 'subject';
-  name: string;
+  name: string;                       // the key posts store in `subject`; never renamed
+  names?: { en?: string; af?: string }; // display names per language
 }
 
 export interface TermDoc extends BaseDoc {
