@@ -12,7 +12,10 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       filename: string; mimeType: string; fileSize: number; grade: number; subject: string;
     };
     if (!process.env.DRIVE_ROOT_FOLDER_ID) throw new HttpError(500, 'DRIVE_ROOT_FOLDER_ID env var not set');
-    if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) throw new HttpError(500, 'GOOGLE_SERVICE_ACCOUNT_JSON env var not set');
+    // Drive sign-in uses an OAuth refresh token (see lib/drive.ts), not a service account
+    for (const name of ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REFRESH_TOKEN']) {
+      if (!process.env[name]) throw new HttpError(500, `${name} env var not set (Google Drive sign-in is not configured)`);
+    }
 
     if (!filename || !mimeType || !fileSize || !grade || !subject) {
       throw new HttpError(400, 'filename, mimeType, fileSize, grade, subject required');

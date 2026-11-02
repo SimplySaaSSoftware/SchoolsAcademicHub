@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { getItemById, upsertItem } from '../lib/db';
-import { isLang, originalLang, refreshStale } from '../lib/translation';
+import { isLang, originalLang, reconcileAfterEdit } from '../lib/translation';
 import { requireAuth, requireRole, requireSchoolMatch, errorResponse, HttpError, assertPostAccess } from '../lib/middleware';
 import { PostDoc, AuditEntry } from '../types';
 
@@ -50,7 +50,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       ...publishedFields,
       audit,
     };
-    refreshStale(updated);   // translations of changed text become 'stale' and drop out of the student view
+    reconcileAfterEdit(post, updated);   // text changes make translations 'stale'; image-only changes just flow through
     return { jsonBody: await upsertItem<PostDoc>(updated) };
   } catch (err) {
     return errorResponse(err);

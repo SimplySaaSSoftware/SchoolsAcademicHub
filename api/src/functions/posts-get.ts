@@ -1,7 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { getItemById } from '../lib/db';
 import { subjectNameMap, namesFor } from '../lib/subjects';
-import { localizePost, isLang, originalLang, otherLang, translationState } from '../lib/translation';
+import { localizePost, withSyncedImages, isLang, originalLang, otherLang, translationState } from '../lib/translation';
 import { requireAuth, requireSchoolMatch, errorResponse, HttpError, assertPostAccess, studentSubjects } from '../lib/middleware';
 import { PostDoc } from '../types';
 
@@ -22,7 +22,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     // Staff: full post plus per-language state ('none' | 'draft' | 'verified' | 'stale')
     const orig = originalLang(post);
     const other = otherLang(orig);
-    return { jsonBody: { ...post, lang: orig, translation_state: { [other]: translationState(post.translations?.[other]) } } };
+    return { jsonBody: { ...post, translations: withSyncedImages(post), lang: orig, translation_state: { [other]: translationState(post.translations?.[other]) } } };
   } catch (err) {
     return errorResponse(err);
   }
