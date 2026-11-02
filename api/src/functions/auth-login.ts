@@ -1,8 +1,9 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { sql, getSchoolBySlug } from '../lib/db';
-import { verifyPin, verifyPassword, signToken, studentExpiry } from '../lib/auth';
+import { verifyPin, verifyPassword, signToken, studentExpiry, pinLookup } from '../lib/auth';
+import { assertNotThrottled, recordFailure } from '../lib/throttle';
 import { errorResponse, HttpError } from '../lib/middleware';
-import { PinDoc, UserDoc, SchoolDoc } from '../types';
+import { PinDoc, UserDoc, SchoolDoc, StudentDoc } from '../types';
 
 const SUPER_EMAIL = process.env.SUPER_ADMIN_EMAIL!;
 const SUPER_HASH  = process.env.SUPER_ADMIN_PASSWORD_HASH!;
@@ -32,6 +33,23 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     // PIN login
     if (school.auth_mode === 'pin' || body.pin) {
       if (!body.pin) throw new HttpError(400, 'PIN required');
+      await assertNotThrottled(req, school.school_id);
+
+      // Individual student PIN (fast keyed lookup, no scan)
+      const students = await sql<{ data: StudentDoc }[]>`
+        SELECT data FROM items
+        WHERE school_id = ${school.school_id} AND type = 'student'
+          AND data->>'pin_lookup' = ${pinLookup(body.pin.trim())}
+          AND (data->>'active')::boolean = true`;
+      if (students[0]) {
+        const st = students[0].data;
+        const token = signToken(
+          { school_id: school.school_id, user_id: st.id, role: 'student', grade: st.grade, name: st.name },
+          studentExpiry('student')
+        );
+        return { jsonBody: buildResponse(token, 'student', st.grade, st.name, school) };
+      }
+
       const rows = await sql<{ data: PinDoc }[]>`
         SELECT data FROM items WHERE school_id = ${school.school_id} AND type = 'pin'`;
       for (const row of rows) {
@@ -44,11 +62,13 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
           return { jsonBody: buildResponse(token, p.role, p.grade, p.label, school) };
         }
       }
+      await recordFailure(req, school.school_id);
       throw new HttpError(401, 'Invalid PIN');
     }
 
     // Email / password login
     if (!body.email || !body.password) throw new HttpError(400, 'Email and password required');
+    await assertNotThrottled(req, school.school_id);
     const rows = await sql<{ data: UserDoc }[]>`
       SELECT data FROM items
       WHERE school_id = ${school.school_id} AND type = 'user'
@@ -59,7 +79,10 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     for (const r of rows) {
       if (await verifyPassword(body.password, r.data.password_hash)) { user = r.data; break; }
     }
-    if (!user) throw new HttpError(401, 'Invalid credentials');
+    if (!user) {
+      await recordFailure(req, school.school_id);
+      throw new HttpError(401, 'Invalid credentials');
+    }
 
     const token = signToken(
       { school_id: school.school_id, user_id: user.id, role: user.role, grade: user.grade, name: user.name },

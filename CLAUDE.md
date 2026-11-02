@@ -32,7 +32,7 @@ https://polite-island-0106b4103.7.azurestaticapps.net/
 - Super admin: email + password stored as `SUPER_ADMIN_EMAIL` + `SUPER_ADMIN_PASSWORD_HASH` env vars (bcrypt rounds 12)
 - School staff (email mode): email + password stored in DB as `user` type docs
 - School staff (pin mode): shared PIN stored as `pin` type docs
-- Students: grade PIN / student PIN / student email depending on `student_auth` school config
+- Students: grade PIN / student PIN / student email depending on `student_auth` school config. Individual student PINs: admin → Students tab (add or bulk import). 6-digit PINs are generated and shown once; only a keyed HMAC (`pin_lookup`) is stored, so a lost PIN is reset, not recovered. Students only see posts for their own grade
 - JWT: `JWT_SECRET` for school users, `JWT_SECRET_SUPER` for super admin (8h expiry, 24h for students)
 
 ## Item types in DB
@@ -44,6 +44,8 @@ https://polite-island-0106b4103.7.azurestaticapps.net/
 | `post` | Learning content posts |
 | `activity` | Student post-opened events (tracking) |
 | `quiz_attempt` | Student quiz submissions |
+| `student` | Student profile for individual-PIN login (`name`, `grade`, `pin_lookup`, `active`) |
+| `login_fail` | Failed login attempt per IP, used to rate-limit (10 per 10 min) |
 | `reset_token` | Password reset tokens (expires 1h) |
 | `subject` | Subject name list per school |
 | `term` | Term name list per school |

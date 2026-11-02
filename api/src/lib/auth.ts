@@ -1,6 +1,6 @@
 import * as bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHmac, randomInt } from 'crypto';
 import { JwtPayload, Role } from '../types';
 
 const JWT_SECRET = (process.env.JWT_SECRET_SUPER || process.env.JWT_SECRET)!;
@@ -35,4 +35,13 @@ export function generateResetToken(): string {
 
 export function studentExpiry(role: Role): string {
   return role === 'student' ? '24h' : '8h';
+}
+
+/** Keyed hash used to find a student by PIN without scanning every account. Useless without the server secret. */
+export function pinLookup(pin: string): string {
+  return createHmac('sha256', JWT_SECRET).update(`student-pin:${pin}`).digest('hex');
+}
+
+export function generatePin(): string {
+  return String(randomInt(100000, 1000000));
 }
