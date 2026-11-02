@@ -48,6 +48,9 @@ https://polite-island-0106b4103.7.azurestaticapps.net/
 | `subject` | Subject name list per school |
 | `term` | Term name list per school |
 
+## Languages (English / Afrikaans)
+A post has an original `lang` (`en`/`af`, absent = `en`). `translations.{lang}` holds text only (title, content_html, quiz question/option text); grading data (`correct_index`) always comes from the original quiz. A translation is `draft` until a teacher verifies it, and becomes `stale` (hidden from students) when the original text changes. Students only ever see verified, non-stale translations. AI drafts via `POST /posts/{id}/translate` (`api/src/lib/ai-translate.ts`).
+
 ## Environment variables (Azure Portal → SWA → Environment variables)
 | Name | Purpose |
 |---|---|
@@ -62,6 +65,8 @@ https://polite-island-0106b4103.7.azurestaticapps.net/
 | `SUPER_ADMIN_PASSWORD_HASH` | bcrypt hash (rounds 12) of super admin password |
 | `RESEND_API_KEY` | Resend API key for transactional emails |
 | `RESEND_FROM` | From address for emails |
+| `ANTHROPIC_API_KEY` | Claude API key for AI translation (English ⇄ Afrikaans). Without it the Generate button returns a clear error; manual translation still works |
+| `ANTHROPIC_MODEL` | Optional. Model for AI translation (default `claude-sonnet-5-5`) |
 
 ## GitHub Secrets (for Actions)
 | Name | Purpose |

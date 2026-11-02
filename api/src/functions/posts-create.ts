@@ -1,5 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { insertItem } from '../lib/db';
+import { isLang } from '../lib/translation';
 import { requireAuth, requireRole, errorResponse, HttpError, effectiveSchoolId, assertPostAccess } from '../lib/middleware';
 import { PostDoc } from '../types';
 import { randomUUID } from 'crypto';
@@ -32,6 +33,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       attachments_json: body.attachments_json ?? '[]',
       quiz_json:        body.quiz_json ?? '[]',
       quiz_hide_content: body.quiz_hide_content ?? false,
+      lang:             isLang(body.lang) ? body.lang : 'en',
       status,
       author_id:        jwt.user_id,
       author_name:      jwt.name ?? jwt.user_id,
