@@ -172,6 +172,8 @@ export interface QuizAttemptDoc extends BaseDoc {
     chosen: number;
     correct: number;
     is_right: boolean;
+    question?: string;
+    selected_text?: string;
   }>;
   time_taken_seconds?: number;
   timestamp: string;

@@ -189,7 +189,7 @@
     }
     posts.forEach((p) => {
       html += `<tr>
-        <td><a href="#" class="link-action" data-action="view" data-id="${esc(p.id)}">${esc(p.title)}</a></td>
+        <td><a href="#" class="link-action" data-action="view" data-id="${esc(p.id)}">${esc(p.title)}</a>${altTitle(p)}</td>
         <td>${esc(String(p.grade))}</td>
         <td>${esc(p.subject)}</td>
         <td>${esc(p.term)}</td>
@@ -266,6 +266,7 @@
       </div>
       <div class="editor-layout">
         <div class="editor-left">
+          ${isEdit ? '<div id="lang-tabs-wrap"></div>' : ''}
           <div class="form-group">
             <label class="form-label">Title *</label>
             <input id="f-title" class="form-control" value="${esc(post?.title ?? '')}" placeholder="Post title" required/>
@@ -369,7 +370,7 @@
       attachImageResizePicker(quillEditor, () => { /* content saved on submit */ });
     });
 
-    if (isEdit) renderTranslationPanel(post);
+    if (isEdit) { renderTranslationPanel(post); renderEditorTabs(post); }
 
     renderAttachments(post ? ((() => { try { return JSON.parse(post.attachments_json || '[]'); } catch { return []; } })()) : []);
     renderQuizBuilder();
@@ -420,6 +421,38 @@
   const otherOf   = (l) => (l === 'en' ? 'af' : 'en');
   function lastLang() { try { return localStorage.getItem('hub_post_lang') || 'en'; } catch { return 'en'; } }
 
+  // Other-language title shown under the main one (teachers see drafts too)
+  function altTitle(p) {
+    const other = otherOf(p.lang ?? 'en');
+    const t = p.titles?.[other];
+    return t ? `<div class="title-alt" lang="${other}">${esc(t)}</div>` : '';
+  }
+
+  // Language tabs: [English | Afrikaans] with state. The original opens the editor, the other opens its review screen.
+  function langTabs(post, active) {
+    const orig  = post.lang ?? 'en';
+    const other = otherOf(orig);
+    const t     = post.translations?.[other];
+    const st    = !t ? 'none' : t.stale ? 'stale' : t.status;
+    const mark  = { none: '＋', draft: '· draft', verified: '✓', stale: '⚠' }[st];
+    const tab   = (l, on, extra) => `<button type="button" class="lang-tab ${on ? 'lang-tab--on' : ''}" data-lang-tab="${l}" aria-pressed="${on}">${LANG_NAME[l]}${extra ? ` <span class="lang-tab__mark lang-tab__mark--${st}">${extra}</span>` : ''}</button>`;
+    return `<div class="lang-tabs" role="group" aria-label="Language">${tab(orig, active === orig, '')}${tab(other, active === other, mark)}</div>`;
+  }
+
+  function bindLangTabs(root, post, active) {
+    root.querySelectorAll('[data-lang-tab]').forEach((b) => b.addEventListener('click', () => {
+      const l = b.dataset.langTab;
+      if (l === active) return;
+      const orig = post.lang ?? 'en';
+      if (l === orig) { document.querySelector('.tr-overlay')?.remove(); return; }
+      if (post.translations?.[l]) { showTranslationModal(post, l); return; }
+      document.querySelector('.tr-overlay')?.remove();
+      const panel = document.getElementById('translation-panel');
+      panel?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      panel?.classList.add('tr-panel--flash'); setTimeout(() => panel?.classList.remove('tr-panel--flash'), 1500);
+    }));
+  }
+
   function langChips(p) {
     const orig  = p.lang ?? 'en';
     const other = otherOf(orig);
@@ -427,6 +460,13 @@
     const label = { none: '', draft: ' · AI draft', verified: ' ✓', stale: ' ⚠ re-check' }[st];
     return `<span class="lang-chip">${orig.toUpperCase()}</span>` +
       (st === 'none' ? '' : `<span class="lang-chip lang-chip--${st}">${other.toUpperCase()}${label}</span>`);
+  }
+
+  function renderEditorTabs(post) {
+    const wrap = document.getElementById('lang-tabs-wrap');
+    if (!wrap) return;
+    wrap.innerHTML = langTabs(post, post.lang ?? 'en');
+    bindLangTabs(wrap, post, post.lang ?? 'en');
   }
 
   function renderTranslationPanel(post) {
@@ -442,6 +482,7 @@
       verified: `✓ Verified${t?.verified_by_name ? ' by ' + esc(t.verified_by_name) : ''}. Students can switch to ${LANG_NAME[other]}.`,
       stale:    `⚠ The ${LANG_NAME[orig]} text changed after this was checked. <strong>Hidden from students</strong> until you re-check it.`,
     }[st];
+    renderEditorTabs(post);
     el.className = `tr-panel tr-panel--${st}`;
     el.innerHTML = `
       <div class="tr-panel__title">${LANG_NAME[other]} version</div>
@@ -527,6 +568,7 @@
           <button class="btn btn--ghost btn--sm" id="tr-close">&times; Close</button>
         </div>
         <div class="modal__body">
+          <div id="tr-tabs"></div>
           <p class="tr-note">${t?.ai_generated ? '✨ AI-generated draft. Read every part carefully — especially maths, names and quiz answers — before verifying.' : 'Write or paste the translation.'}
             Quiz answers stay the same: the correct option is taken from the ${LANG_NAME[orig]} quiz.</p>
 
@@ -562,6 +604,8 @@
       </div>`;
     document.body.appendChild(overlay);
     overlay.querySelector('#tr-close').addEventListener('click', () => overlay.remove());
+    overlay.querySelector('#tr-tabs').innerHTML = langTabs(post, lang);
+    bindLangTabs(overlay.querySelector('#tr-tabs'), post, lang);
 
     let contentEd; const qEds = [];
     loadQuill(() => {

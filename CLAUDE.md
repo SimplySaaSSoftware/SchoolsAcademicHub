@@ -51,6 +51,9 @@ https://polite-island-0106b4103.7.azurestaticapps.net/
 ## Languages (English / Afrikaans)
 A post has an original `lang` (`en`/`af`, absent = `en`). `translations.{lang}` holds text only (title, content_html, quiz question/option text); grading data (`correct_index`) always comes from the original quiz. A translation is `draft` until a teacher verifies it, and becomes `stale` (hidden from students) when the original text changes. Students only ever see verified, non-stale translations. AI drafts via `POST /posts/{id}/translate` (`api/src/lib/ai-translate.ts`).
 
+## Quiz grading
+Graded on the server only. Students receive questions and options without `correct_index` (`posts-get`, `posts-list`). `POST /activity/quiz-attempt` takes `{post_id, selections[], lang}`, computes the score from the stored quiz, and returns per-question correct answers only after submitting. Any client-sent score is ignored.
+
 ## Environment variables (Azure Portal → SWA → Environment variables)
 | Name | Purpose |
 |---|---|
