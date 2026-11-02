@@ -11,7 +11,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     const schoolId = effectiveSchoolId(req, jwt);
 
     const body = await req.json() as {
-      post_id: string; post_title: string; subject: string; term: string;
+      post_id: string; post_title: string; subject: string; term: string; lang?: string;
       score: number; total: number;
       answers: QuizAttemptDoc['answers'];
       time_taken_seconds?: number;
@@ -42,6 +42,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       subject:            body.subject ?? '',
       term:               body.term ?? '',
       attempt_number:     attemptNumber,
+      ...(body.lang === 'en' || body.lang === 'af' ? { lang: body.lang } : {}),
       score:              body.score,
       total:              body.total,
       percentage:         pct,

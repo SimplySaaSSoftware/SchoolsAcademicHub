@@ -66,10 +66,10 @@
         const hasQuiz = (() => { try { return JSON.parse(p.quiz_json || '[]').length > 0; } catch { return false; } })();
         html += `<article class="post-card" data-id="${esc(p.id)}" role="button" tabindex="0">
           <div class="post-card__header">
-            <h3 class="post-card__title">${esc(p.title)}</h3>
+            <h3 class="post-card__title">${esc((prefLang() && p.titles?.[prefLang()]) || p.title)}</h3>
             ${hasQuiz ? '<span class="badge badge--quiz">Quiz</span>' : ''}
           </div>
-          <p class="post-card__meta">Term ${esc(p.term)} &bull; Grade ${esc(String(p.grade))}</p>
+          <p class="post-card__meta">Term ${esc(p.term)} &bull; Grade ${esc(String(p.grade))}${(p.available_langs ?? []).length > 1 ? ' &bull; EN / AF' : ''}</p>
         </article>`;
       });
       html += '</div></section>';
@@ -84,19 +84,25 @@
     });
   }
 
+  // ── Language preference (English / Afrikaans) ───────────────
+  const LANG_LABEL = { en: 'English', af: 'Afrikaans' };
+  function prefLang() { try { return localStorage.getItem('hub_lang'); } catch { return null; } }
+  function setPrefLang(l) { try { localStorage.setItem('hub_lang', l); } catch {} }
+
   // ── Post view ───────────────────────────────────────────────
-  async function openPost(id) {
+  async function openPost(id, track = true) {
     main.innerHTML = '<p class="loading-text">Loading…</p>';
     let post;
     try {
-      post = await apiGet(`/posts/${id}`);
+      const pl = prefLang();
+      post = await apiGet(`/posts/${id}${pl ? `?lang=${pl}` : ''}`);
     } catch (e) {
       main.innerHTML = `<p class="loading-text" style="color:red">${e.message}</p>`;
       return;
     }
 
     // Track activity (fire and forget)
-    apiPost('/activity/post-opened', {
+    if (track) apiPost('/activity/post-opened', {
       post_id: post.id, post_title: post.title, subject: post.subject, term: post.term,
     }).catch(() => {});
 
@@ -124,6 +130,10 @@
     main.innerHTML = `
       <div class="post-view">
         <button id="btn-back" class="btn btn--secondary btn--sm" style="margin-bottom:1rem;">&larr; Back</button>
+        ${(post.available_langs ?? []).length > 1 ? `
+          <div class="lang-switch" role="group" aria-label="Language">
+            ${post.available_langs.map((l) => `<button class="lang-switch__btn ${l === post.lang ? 'lang-switch__btn--on' : ''}" data-lang="${l}" ${l === post.lang ? 'aria-pressed="true"' : 'aria-pressed="false"'}>${LANG_LABEL[l]}</button>`).join('')}
+          </div>` : ''}
         <h1 class="post-view__title">${esc(post.title)}</h1>
         <p class="post-view__meta">Grade ${esc(String(post.grade))} &bull; ${esc(post.subject)} &bull; Term ${esc(post.term)}</p>
         <div class="post-content" id="post-content">${sanitize(post.content_html ?? '')}</div>
@@ -132,6 +142,11 @@
       </div>`;
 
     document.getElementById('btn-back').addEventListener('click', renderPostList);
+    main.querySelectorAll('.lang-switch__btn').forEach((b) => b.addEventListener('click', () => {
+      if (b.dataset.lang === post.lang) return;
+      setPrefLang(b.dataset.lang);
+      openPost(id, false);
+    }));
 
     if (questions.length) {
       renderQuiz(questions, post);
@@ -229,7 +244,7 @@
 
       try {
         const result = await apiPost('/activity/quiz-attempt', {
-          post_id: post.id, post_title: post.title, subject: post.subject, term: post.term,
+          post_id: post.id, post_title: post.title, subject: post.subject, term: post.term, lang: post.lang,
           score, total: questions.length, answers,
           time_taken_seconds: Math.round((Date.now() - startTime) / 1000),
         });

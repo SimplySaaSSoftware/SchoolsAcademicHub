@@ -169,7 +169,7 @@
 
   function renderPostList(posts, opts = {}) {
     const extraHead = opts.extraHead ?? '';
-    const cols = 7 + (opts.extraHead ? 3 : 0);
+    const cols = 8 + (opts.extraHead ? 3 : 0);
     let html = `
       <div class="page-toolbar">
         ${opts.back ? '<button id="btn-back-dash" class="btn btn--ghost btn--sm">&larr; Dashboard</button>' : ''}
@@ -180,7 +180,7 @@
       <div class="table-scroll-wrap"><table class="table" id="posts-table">
         <thead><tr>
           <th>Title</th><th>Grade</th><th>Subject</th><th>Term</th>
-          <th>Status</th>${extraHead}<th>Author</th><th></th>
+          <th>Status</th>${extraHead}<th>Language</th><th>Author</th><th></th>
         </tr></thead>
         <tbody>`;
 
@@ -195,6 +195,7 @@
         <td>${esc(p.term)}</td>
         <td><span class="badge badge--${p.status === 'published' ? 'published' : 'draft'}">${esc(p.status)}</span></td>
         ${opts.extraCells ? opts.extraCells(p) : ''}
+        <td>${langChips(p)}</td>
         <td>${esc(p.author_name ?? '')}</td>
         <td class="table-actions">
           <button class="btn btn--secondary btn--sm" data-action="preview" data-id="${esc(p.id)}">Preview</button>
@@ -284,6 +285,16 @@
             </div>
           </div>
           <div class="form-group">
+            <label class="form-label">Language this post is written in *</label>
+            <select id="f-lang" class="form-control" ${post?.translations && Object.keys(post.translations).length ? 'disabled title="Delete the translation to change this"' : ''}>
+              <option value="en" ${(post?.lang ?? lastLang()) === 'en' ? 'selected' : ''}>English</option>
+              <option value="af" ${(post?.lang ?? lastLang()) === 'af' ? 'selected' : ''}>Afrikaans</option>
+            </select>
+          </div>
+          ${isEdit
+            ? '<div id="translation-panel" class="tr-panel"></div>'
+            : '<p class="tr-hint">Save the post first, then you can create the other language version with AI.</p>'}
+          <div class="form-group">
             <label class="form-label">Content</label>
             <div id="quill-editor" style="min-height:280px;background:#fff"></div>
           </div>
@@ -358,6 +369,8 @@
       attachImageResizePicker(quillEditor, () => { /* content saved on submit */ });
     });
 
+    if (isEdit) renderTranslationPanel(post);
+
     renderAttachments(post ? ((() => { try { return JSON.parse(post.attachments_json || '[]'); } catch { return []; } })()) : []);
     renderQuizBuilder();
   }
@@ -373,6 +386,7 @@
       attachments_json: JSON.stringify(getAttachments()),
       quiz_json:        JSON.stringify(quizQuestions),
       quiz_hide_content: document.getElementById('f-quiz-hide-content')?.checked ?? false,
+      lang:    document.getElementById('f-lang')?.value || existingPost?.lang || 'en',
     };
   }
 
@@ -383,6 +397,7 @@
     if (!body.term)    { showNotify('Term is required.', true); return; }
 
     body.status = status;
+    try { localStorage.setItem('hub_post_lang', body.lang); } catch {}
     const btn = document.getElementById(status === 'draft' ? 'btn-save-draft' : 'btn-publish');
     if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
 
@@ -398,6 +413,186 @@
       showNotify(e.message, true);
       if (btn) { btn.disabled = false; btn.textContent = status === 'draft' ? 'Save Draft' : 'Publish'; }
     }
+  }
+
+  // ── Translations (English ⇄ Afrikaans) ─────────────────────────
+  const LANG_NAME = { en: 'English', af: 'Afrikaans' };
+  const otherOf   = (l) => (l === 'en' ? 'af' : 'en');
+  function lastLang() { try { return localStorage.getItem('hub_post_lang') || 'en'; } catch { return 'en'; } }
+
+  function langChips(p) {
+    const orig  = p.lang ?? 'en';
+    const other = otherOf(orig);
+    const st    = p.translation_state?.[other] ?? 'none';
+    const label = { none: '', draft: ' · AI draft', verified: ' ✓', stale: ' ⚠ re-check' }[st];
+    return `<span class="lang-chip">${orig.toUpperCase()}</span>` +
+      (st === 'none' ? '' : `<span class="lang-chip lang-chip--${st}">${other.toUpperCase()}${label}</span>`);
+  }
+
+  function renderTranslationPanel(post) {
+    const el = document.getElementById('translation-panel');
+    if (!el) return;
+    const orig  = post.lang ?? 'en';
+    const other = otherOf(orig);
+    const t     = post.translations?.[other];
+    const st    = !t ? 'none' : t.stale ? 'stale' : t.status;
+    const msg = {
+      none:     `No ${LANG_NAME[other]} version yet. Students only see ${LANG_NAME[orig]}.`,
+      draft:    `${t?.ai_generated ? 'AI draft' : 'Draft'} — <strong>not visible to students</strong> until you check it and mark it verified.`,
+      verified: `✓ Verified${t?.verified_by_name ? ' by ' + esc(t.verified_by_name) : ''}. Students can switch to ${LANG_NAME[other]}.`,
+      stale:    `⚠ The ${LANG_NAME[orig]} text changed after this was checked. <strong>Hidden from students</strong> until you re-check it.`,
+    }[st];
+    el.className = `tr-panel tr-panel--${st}`;
+    el.innerHTML = `
+      <div class="tr-panel__title">${LANG_NAME[other]} version</div>
+      <p class="tr-panel__msg">${msg}</p>
+      <div class="tr-panel__actions">
+        ${st === 'none' ? `
+          <button class="btn btn--primary" data-tr="ai">✨ Generate with AI</button>
+          <button class="btn btn--secondary" data-tr="manual">Write it myself</button>` : `
+          <button class="btn btn--primary" data-tr="review">${st === 'verified' ? 'View / edit' : 'Review &amp; verify'}</button>
+          <button class="btn btn--secondary" data-tr="ai">↻ Regenerate with AI</button>
+          <button class="btn btn--ghost" data-tr="delete">Delete</button>`}
+      </div>`;
+    el.querySelectorAll('[data-tr]').forEach((b) => b.addEventListener('click', () => onTranslationAction(post, other, b.dataset.tr, b)));
+  }
+
+  async function refreshPost(id) {
+    const fresh = await apiGet(`/posts/${id}`);
+    const i = allPosts.findIndex((p) => p.id === id);
+    if (i >= 0) allPosts[i] = { ...allPosts[i], ...fresh, translation_state: fresh.translation_state };
+    return fresh;
+  }
+
+  async function onTranslationAction(post, target, action, btn) {
+    try {
+      if (action === 'delete') {
+        if (!confirm(`Delete the ${LANG_NAME[target]} version?`)) return;
+        await apiDelete(`/posts/${post.id}/translations/${target}`);
+      } else if (action === 'ai') {
+        const t = post.translations?.[target];
+        if (t && !confirm(`Replace the current ${LANG_NAME[target]} version with a new AI translation? Your edits will be lost.`)) return;
+        btn.disabled = true; btn.textContent = 'Translating… (up to 40s)';
+        // Make sure AI translates exactly what is on screen, without changing publish status
+        await apiPut(`/posts/${post.id}`, { ...buildPostFromForm(post), status: post.status });
+        await apiPost(`/posts/${post.id}/translate`, { target });
+        showNotify('AI draft ready. Please review it before marking it verified.');
+      } else if (action === 'manual') {
+        await apiPut(`/posts/${post.id}`, { ...buildPostFromForm(post), status: post.status });
+      }
+      const fresh = await refreshPost(post.id);
+      renderTranslationPanel(fresh);
+      if (action === 'ai' || action === 'review' || action === 'manual') showTranslationModal(fresh, target);
+    } catch (e) {
+      showNotify(e.message, true);
+      renderTranslationPanel(post);
+    }
+  }
+
+  function makeQuill(sel, full, initialHtml, placeholder) {
+    const q = new Quill(sel, {
+      theme: 'snow', placeholder,
+      modules: { toolbar: {
+        container: full
+          ? [[{ header: [1, 2, 3, false] }], ['bold', 'italic', 'underline'], [{ list: 'ordered' }, { list: 'bullet' }], ['link', 'image'], ['clean']]
+          : [['bold', 'italic'], ['image']],
+        handlers: { image() {
+          const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.click();
+          input.onchange = () => {
+            const f = input.files[0]; if (!f) return;
+            const r = new FileReader();
+            r.onload = (e) => { const range = q.getSelection(true); q.insertEmbed(range ? range.index : 0, 'image', e.target.result); };
+            r.readAsDataURL(f);
+          };
+        } },
+      } },
+    });
+    if (initialHtml) q.clipboard.dangerouslyPasteHTML(initialHtml);
+    return q;
+  }
+
+  function showTranslationModal(post, lang) {
+    document.querySelector('.tr-overlay')?.remove();
+    const orig  = post.lang ?? 'en';
+    const t     = post.translations?.[lang];
+    const quiz  = (() => { try { return JSON.parse(post.quiz_json || '[]'); } catch { return []; } })();
+    const view  = (html) => (String(html).includes('<') ? sanitize(html) : esc(html));
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay tr-overlay';
+    overlay.innerHTML = `
+      <div class="modal modal--wide">
+        <div class="modal__header">
+          <h2>${LANG_NAME[lang]} version</h2>
+          <button class="btn btn--ghost btn--sm" id="tr-close">&times; Close</button>
+        </div>
+        <div class="modal__body">
+          <p class="tr-note">${t?.ai_generated ? '✨ AI-generated draft. Read every part carefully — especially maths, names and quiz answers — before verifying.' : 'Write or paste the translation.'}
+            Quiz answers stay the same: the correct option is taken from the ${LANG_NAME[orig]} quiz.</p>
+
+          <div class="form-group">
+            <label class="form-label">Title</label>
+            <div class="tr-orig">${esc(post.title)}</div>
+            <input id="tr-title" class="form-control" value="${esc(t?.title ?? '')}"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Content</label>
+            <details class="tr-orig-details"><summary>Show ${LANG_NAME[orig]} original</summary>
+              <div class="tr-orig post-content">${sanitize(post.content_html ?? '')}</div></details>
+            <div id="tr-content" style="min-height:240px;background:#fff"></div>
+          </div>
+          ${quiz.length ? `<h3 style="margin:1rem 0 .5rem">Quiz</h3>` : ''}
+          ${quiz.map((q, i) => `
+            <div class="tr-q">
+              <div class="tr-q__n">Question ${i + 1}</div>
+              <div class="tr-orig">${view(q.question ?? '')}</div>
+              <div id="tr-q-${i}" style="background:#fff"></div>
+              ${(q.options ?? []).map((o, oi) => `
+                <div class="tr-opt ${q.correct_index === oi ? 'tr-opt--correct' : ''}">
+                  <span class="tr-orig tr-opt__orig">${q.correct_index === oi ? '✓ ' : ''}${esc(o)}</span>
+                  <input class="form-control tr-opt__in" data-q="${i}" data-o="${oi}" value="${esc(t?.quiz?.[i]?.options?.[oi] ?? '')}" placeholder="${esc(LANG_NAME[lang])} answer"/>
+                </div>`).join('')}
+            </div>`).join('')}
+
+          <div class="tr-actions">
+            <button class="btn btn--secondary" id="tr-save">Save draft</button>
+            <button class="btn btn--primary" id="tr-verify">✓ Save &amp; mark verified</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#tr-close').addEventListener('click', () => overlay.remove());
+
+    let contentEd; const qEds = [];
+    loadQuill(() => {
+      contentEd = makeQuill('#tr-content', true, t?.content_html ?? '', `${LANG_NAME[lang]} content…`);
+      quiz.forEach((_, i) => { qEds[i] = makeQuill(`#tr-q-${i}`, false, t?.quiz?.[i]?.question ?? '', `${LANG_NAME[lang]} question…`); });
+    });
+
+    async function save(verify) {
+      if (!contentEd) return;
+      const body = {
+        title: overlay.querySelector('#tr-title').value.trim(),
+        content_html: contentEd.root.innerHTML,
+        quiz: quiz.map((q, i) => ({
+          question: qEds[i].root.innerHTML,
+          options: (q.options ?? []).map((_, oi) => overlay.querySelector(`.tr-opt__in[data-q="${i}"][data-o="${oi}"]`).value.trim()),
+        })),
+        verify,
+      };
+      if (!body.title) { showNotify('Title is required.', true); return; }
+      if (verify && body.quiz.some((q) => q.options.some((o) => !o))) { showNotify('Fill in every quiz answer before verifying.', true); return; }
+      const btns = overlay.querySelectorAll('#tr-save, #tr-verify');
+      btns.forEach((b) => { b.disabled = true; });
+      try {
+        await apiPut(`/posts/${post.id}/translations/${lang}`, body);
+        showNotify(verify ? 'Verified. Students can now switch language.' : 'Draft saved.');
+        overlay.remove();
+        renderTranslationPanel(await refreshPost(post.id));
+      } catch (e) { showNotify(e.message, true); btns.forEach((b) => { b.disabled = false; }); }
+    }
+    overlay.querySelector('#tr-save').addEventListener('click', () => save(false));
+    overlay.querySelector('#tr-verify').addEventListener('click', () => save(true));
   }
 
   // ── Attachments ─────────────────────────────────────────────

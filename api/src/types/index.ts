@@ -55,8 +55,26 @@ export interface PinDoc extends BaseDoc {
 
 // ---- Posts ----
 
+export type Lang = 'en' | 'af';
+
+/** Text-only translation of a post. Grading data (correct_index) always comes from the original quiz. */
+export interface Translation {
+  title: string;
+  content_html: string;
+  quiz: Array<{ question: string; options: string[] }>;
+  status: 'draft' | 'verified';
+  ai_generated: boolean;
+  stale: boolean;            // original changed after this was written/verified -> hidden from students
+  source_hash: string;       // hash of original title/content/quiz text when this was saved
+  generated_at?: string;
+  updated_at: string;
+  verified_by_id?: string;
+  verified_by_name?: string;
+  verified_at?: string;
+}
+
 export interface AuditEntry {
-  action: 'created' | 'updated' | 'status_changed' | 'deleted';
+  action: 'created' | 'updated' | 'status_changed' | 'deleted' | 'translated' | 'translation_verified';
   user_id: string;
   user_name: string;
   user_role: Role;
@@ -92,6 +110,8 @@ export interface PostDoc extends BaseDoc {
   attachments_json: string;
   quiz_json: string;
   quiz_hide_content?: boolean;
+  lang?: Lang;                                   // original language (absent on legacy posts = 'en')
+  translations?: Partial<Record<Lang, Translation>>;
   status: 'draft' | 'published';
   author_id: string;
   author_name: string;
@@ -142,6 +162,7 @@ export interface QuizAttemptDoc extends BaseDoc {
   subject: string;
   term: string;
   attempt_number: number;
+  lang?: Lang;
   score: number;
   total: number;
   percentage: number;

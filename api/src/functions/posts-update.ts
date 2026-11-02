@@ -1,5 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { getItemById, upsertItem } from '../lib/db';
+import { isLang, originalLang, refreshStale } from '../lib/translation';
 import { requireAuth, requireRole, requireSchoolMatch, errorResponse, HttpError, assertPostAccess } from '../lib/middleware';
 import { PostDoc, AuditEntry } from '../types';
 
@@ -18,6 +19,11 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     const now     = new Date().toISOString();
     const changed = (['title','grade','subject','term','content_html','attachments_json','quiz_json','quiz_hide_content'] as (keyof PostDoc)[])
       .filter((f) => body[f] !== undefined && body[f] !== post[f]);
+
+    const nextLang = isLang(body.lang) ? body.lang : originalLang(post);
+    if (nextLang !== originalLang(post) && Object.keys(post.translations ?? {}).length > 0) {
+      throw new HttpError(400, 'Delete the translation before changing the original language');
+    }
 
     const audit = [...post.audit];
     if (changed.length > 0) audit.push({ action: 'updated', user_id: jwt.user_id, user_name: jwt.name ?? jwt.user_id, user_role: jwt.role, timestamp: now, changes: changed });
@@ -38,11 +44,13 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       attachments_json: body.attachments_json ?? post.attachments_json,
       quiz_json: body.quiz_json ?? post.quiz_json,
       quiz_hide_content: body.quiz_hide_content !== undefined ? body.quiz_hide_content : post.quiz_hide_content,
+      lang: nextLang,
       status: body.status ?? post.status,
       updated_at: now, updated_by_id: jwt.user_id, updated_by_name: jwt.name,
       ...publishedFields,
       audit,
     };
+    refreshStale(updated);   // translations of changed text become 'stale' and drop out of the student view
     return { jsonBody: await upsertItem<PostDoc>(updated) };
   } catch (err) {
     return errorResponse(err);
