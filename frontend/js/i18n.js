@@ -21,6 +21,10 @@ const STRINGS = {
     setNewPassword: 'Set New Password', newPassword: 'New Password', confirmPassword: 'Confirm Password',
     updatePassword: 'Update Password', invalidLink: 'Invalid reset link.', noMatch: 'Passwords do not match.',
     pwShort: 'Password must be at least 8 characters.', updating: 'Updating…', pwUpdated: 'Password updated! Redirecting to login…',
+    tabTodo: 'To do', tabDone: 'Done', tabAll: 'All', statusTodo: 'To do', statusDone: '✓ Done', statusRetry: 'Try again',
+    best: 'Best', attemptOne: 'attempt', attemptMany: 'attempts', progressLine: '{done} of {total} done',
+    allDoneTitle: 'All done! Great work 🎉', allDoneText: 'You have finished everything for now.', showAll: 'Show everything',
+    nothingDone: 'Nothing finished yet. Open a lesson to get started.', notTaken: 'Not taken yet',
     'err:Invalid PIN': 'Invalid PIN',
     'err:Invalid credentials': 'Invalid email or password',
     'err:Too many failed attempts': 'Too many failed attempts. Please wait 10 minutes and try again.',
@@ -42,6 +46,10 @@ const STRINGS = {
     setNewPassword: 'Stel nuwe wagwoord', newPassword: 'Nuwe wagwoord', confirmPassword: 'Bevestig wagwoord',
     updatePassword: 'Opdateer wagwoord', invalidLink: 'Ongeldige terugstel-skakel.', noMatch: 'Wagwoorde stem nie ooreen nie.',
     pwShort: 'Wagwoord moet ten minste 8 karakters wees.', updating: 'Opdateer tans…', pwUpdated: 'Wagwoord opgedateer! Stuur jou na aanmelding…',
+    tabTodo: 'Om te doen', tabDone: 'Klaar', tabAll: 'Almal', statusTodo: 'Om te doen', statusDone: '✓ Klaar', statusRetry: 'Probeer weer',
+    best: 'Beste', attemptOne: 'poging', attemptMany: 'pogings', progressLine: '{done} van {total} klaar',
+    allDoneTitle: 'Alles klaar! Puik werk 🎉', allDoneText: 'Jy het vir eers alles voltooi.', showAll: 'Wys alles',
+    nothingDone: 'Nog niks voltooi nie. Maak \'n les oop om te begin.', notTaken: 'Nog nie gedoen nie',
     'err:Invalid PIN': 'Ongeldige PIN',
     'err:Invalid credentials': 'Ongeldige e-pos of wagwoord',
     'err:Too many failed attempts': 'Te veel mislukte pogings. Wag asseblief 10 minute en probeer weer.',
@@ -57,7 +65,10 @@ function currentLang() {
 }
 
 /** t('grade') → 'Graad'. Missing keys fall back to English, then the key itself. */
-function t(key) { return STRINGS[currentLang()][key] ?? STRINGS.en[key] ?? key; }
+function t(key, vars) {
+  const s = STRINGS[currentLang()][key] ?? STRINGS.en[key] ?? key;
+  return vars ? s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '') : s;
+}
 
 /** Translate a message that came from the server (matched by its start); unknown messages pass through. */
 function tErr(msg) {

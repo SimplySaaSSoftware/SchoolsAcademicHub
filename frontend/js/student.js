@@ -60,6 +60,19 @@
     renderPostList();
   }
 
+  // To do / Done / All. Default is "To do" so children see what is left first.
+  let filter = (() => { try { return sessionStorage.getItem('hub_filter') || 'todo'; } catch { return 'todo'; } })();
+  const setFilter = (f) => { filter = f; try { sessionStorage.setItem('hub_filter', f); } catch {} renderPostList(); };
+
+  // 'todo' | 'retry' | 'done' for individual students; null for shared grade PINs (no personal progress)
+  // A quiz is done when passed (80%+); a post without a quiz is done once opened.
+  function postStatus(p) {
+    const pr = p.progress;
+    if (!pr) return null;
+    if (p.has_quiz) return pr.passed ? 'done' : (pr.attempts > 0 ? 'retry' : 'todo');
+    return pr.opened ? 'done' : 'todo';
+  }
+
   function renderPostList() {
     view = { name: 'list' };
     if (!allPosts.length) {
@@ -67,47 +80,76 @@
       return;
     }
 
+    const tracked = allPosts.every((p) => p.progress);
+    const status = (p) => postStatus(p);
+    const doneCount = tracked ? allPosts.filter((p) => status(p) === 'done').length : 0;
+    const todoCount = allPosts.length - doneCount;
+    const f = tracked ? filter : 'all';
+    const shown = allPosts.filter((p) => f === 'all' || (f === 'done' ? status(p) === 'done' : status(p) !== 'done'));
+
+    let html = '<div class="posts-grid">';
+    if (tracked) {
+      const pct = Math.round((doneCount / allPosts.length) * 100);
+      html += `<div class="dash-summary">
+          <div class="dash-summary__line"><strong>${t('progressLine', { done: doneCount, total: allPosts.length })}</strong><span>${pct}%</span></div>
+          <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></div>
+        </div>
+        <div class="dash-tabs" role="group">
+          ${[['todo', t('tabTodo'), todoCount], ['done', t('tabDone'), doneCount], ['all', t('tabAll'), allPosts.length]].map(([k, label, n]) =>
+            `<button type="button" class="dash-tab ${f === k ? 'dash-tab--on' : ''}" data-filter="${k}" aria-pressed="${f === k}">${label} <span class="dash-tab__n">${n}</span></button>`).join('')}
+        </div>`;
+    }
+
+    if (!shown.length) {
+      html += f === 'todo'
+        ? `<div class="dash-empty-state"><h2>${t('allDoneTitle')}</h2><p>${t('allDoneText')}</p><button type="button" class="btn btn--primary" data-filter="all">${t('showAll')}</button></div>`
+        : `<p class="dash-empty">${t('nothingDone')}</p>`;
+    }
+
     // Group by subject
     const bySubject = {};
-    allPosts.forEach((p) => {
-      (bySubject[p.subject] = bySubject[p.subject] || []).push(p);
-    });
-
-    const bilingual = allPosts.some((p) => (p.available_langs ?? []).length > 1);
-    let html = '<div class="posts-grid">';
-    if (bilingual) {
-      const cur = currentLang();
-      html += `<div class="lang-switch" role="group" aria-label="${t('language')}">
-        ${['en', 'af'].map((l) => `<button class="lang-switch__btn ${cur === l ? 'lang-switch__btn--on' : ''}" data-lang="${l}" aria-pressed="${cur === l}">${LANG_LABEL[l]}</button>`).join('')}
-      </div>`;
-    }
+    shown.forEach((p) => { (bySubject[p.subject] = bySubject[p.subject] || []).push(p); });
     Object.entries(bySubject).forEach(([subject, posts]) => {
-      html += `<section class="subject-section">
-        <h2 class="subject-heading">${esc(subject)}</h2>
+      html += `<details class="subject-section" open>
+        <summary class="subject-heading"><span>${esc(subject)}</span><span class="subject-count">${posts.length}</span></summary>
         <div class="cards">`;
       posts.forEach((p) => {
-        const hasQuiz = !!p.has_quiz;
-        html += `<article class="post-card" data-id="${esc(p.id)}" role="button" tabindex="0">
+        const st = status(p);
+        const pr = p.progress;
+        const stLabel = { todo: t('statusTodo'), retry: t('statusRetry'), done: t('statusDone') }[st];
+        const score = p.has_quiz && pr
+          ? (pr.attempts > 0
+              ? `<span class="score-chip score-chip--${pr.passed ? 'pass' : 'fail'}">${t('best')} ${pr.best}%</span><span class="post-card__tries">${pr.attempts} ${pr.attempts === 1 ? t('attemptOne') : t('attemptMany')}</span>`
+              : `<span class="post-card__tries">${t('notTaken')}</span>`)
+          : '';
+        html += `<article class="post-card ${st ? 'post-card--' + st : ''}" data-id="${esc(p.id)}" role="button" tabindex="0">
           <div class="post-card__header">
             <h3 class="post-card__title">${esc(primaryTitle(p))}</h3>
-            ${hasQuiz ? `<span class="badge badge--quiz">${t('quiz')}</span>` : ''}
+            ${p.has_quiz ? `<span class="badge badge--quiz">${t('quiz')}</span>` : ''}
           </div>
           ${secondaryTitle(p) ? `<p class="post-card__alt" lang="${p.lang === 'af' ? 'en' : 'af'}">${esc(secondaryTitle(p))}</p>` : ''}
           <p class="post-card__meta">${t('term')} ${esc(p.term)} &bull; ${t('grade')} ${esc(String(p.grade))}${(p.available_langs ?? []).length > 1 ? ' &bull; EN / AF' : ''}</p>
+          ${st ? `<div class="post-card__status"><span class="status-chip status-chip--${st}">${stLabel}</span>${score}</div>` : ''}
         </article>`;
       });
-      html += '</div></section>';
+      html += '</div></details>';
     });
     html += '</div>';
     main.innerHTML = html;
 
-    main.querySelectorAll('.posts-grid > .lang-switch .lang-switch__btn').forEach((b) => b.addEventListener('click', () => setPrefLang(b.dataset.lang)));
-
+    main.querySelectorAll('[data-filter]').forEach((b) => b.addEventListener('click', () => setFilter(b.dataset.filter)));
     main.querySelectorAll('.post-card').forEach((card) => {
       const open = () => openPost(card.dataset.id);
       card.addEventListener('click', open);
       card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') open(); });
     });
+  }
+
+  // Keep the dashboard in step with what the student just did, without a reload
+  function bumpProgress(id, patch) {
+    const p = allPosts.find((x) => x.id === id);
+    if (!p || !p.progress) return;
+    Object.assign(p.progress, patch);
   }
 
   // ── Language preference (English / Afrikaans) ───────────────
@@ -135,6 +177,8 @@
       main.innerHTML = `<p class="loading-text" style="color:red">${e.message}</p>`;
       return;
     }
+
+    bumpProgress(id, { opened: true });
 
     // Track activity (fire and forget)
     if (track) apiPost('/activity/post-opened', {
@@ -260,6 +304,11 @@
           time_taken_seconds: Math.round((Date.now() - startTime) / 1000),
         });
         const score = result.score;
+        const prev = allPosts.find((x) => x.id === post.id)?.progress;
+        bumpProgress(post.id, {
+          opened: true, attempts: (prev?.attempts ?? 0) + 1, last: result.percentage,
+          best: Math.max(prev?.best ?? 0, result.percentage), passed: (prev?.passed ?? false) || result.passed,
+        });
 
         section.querySelectorAll('.quiz-question').forEach((el, i) => {
           const r = result.results[i];
