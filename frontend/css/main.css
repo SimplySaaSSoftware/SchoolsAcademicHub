@@ -626,3 +626,19 @@ summary.subject-heading > span:first-child { flex: 1; }
 .drive-card__help { margin-top: .75rem; font-size: .9375rem; }
 .drive-card__help summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--primary); font-weight: 600; }
 .drive-card__help code { word-break: break-all; background: var(--bg); padding: .15rem .4rem; border-radius: 4px; }
+
+/* ── Embedded YouTube video: full width, 16:9, works on phones ── */
+iframe.ql-video, .post-content iframe, .ql-editor iframe, .tr-orig iframe {
+  display: block; width: 100%; max-width: 720px; aspect-ratio: 16 / 9; height: auto;
+  border: 0; border-radius: 8px; margin: .75rem 0; background: #000;
+}
+
+/* ── Rich-text editor toolbar: finger-sized buttons on phones ──
+   Quill's own stylesheet loads later, so these selectors are deliberately more specific. */
+@media (max-width: 600px) {
+  html body .ql-toolbar.ql-snow { display: flex; flex-wrap: wrap; gap: 2px; padding: 4px; }
+  html body .ql-toolbar.ql-snow .ql-formats { display: flex; flex-wrap: wrap; margin-right: 6px; }
+  html body .ql-toolbar.ql-snow button { width: 44px; height: 44px; padding: 10px; }
+  html body .ql-toolbar.ql-snow .ql-picker { height: 44px; display: inline-flex; align-items: center; }
+  html body .ql-toolbar.ql-snow .ql-picker-label { padding: 0 8px; line-height: 44px; height: 44px; display: inline-flex; align-items: center; }
+}

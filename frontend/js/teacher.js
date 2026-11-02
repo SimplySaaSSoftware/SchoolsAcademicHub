@@ -363,10 +363,11 @@
             ['bold', 'italic', 'underline', 'strike'],
             [{ color: [] }, { background: [] }],
             [{ list: 'ordered' }, { list: 'bullet' }],
-            ['blockquote', 'link', 'image'],
+            ['blockquote', 'link', 'image', 'video'],
             ['clean'],
           ],
           handlers: {
+            video() { quillInsertYouTube(quillEditor); },
             image() {
               const input = document.createElement('input');
               input.type = 'file'; input.accept = 'image/*'; input.click();
@@ -555,9 +556,9 @@
       theme: 'snow', placeholder,
       modules: { toolbar: {
         container: full
-          ? [[{ header: [1, 2, 3, false] }], ['bold', 'italic', 'underline'], [{ list: 'ordered' }, { list: 'bullet' }], ['link', 'image'], ['clean']]
+          ? [[{ header: [1, 2, 3, false] }], ['bold', 'italic', 'underline'], [{ list: 'ordered' }, { list: 'bullet' }], ['link', 'image', 'video'], ['clean']]
           : [['bold', 'italic'], ['image']],
-        handlers: { image() {
+        handlers: { video() { quillInsertYouTube(q); }, image() {
           const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.click();
           input.onchange = () => {
             const f = input.files[0]; if (!f) return;
@@ -978,12 +979,7 @@
   }
 
   // ── Helpers ──────────────────────────────────────────────────
-  function sanitize(html) {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    div.querySelectorAll('script,iframe,object,embed').forEach((el) => el.remove());
-    return div.innerHTML;
-  }
+  const sanitize = safeHtml;   // js/safe-html.js
 
   function renderAttachmentItem(a) {
     const name        = typeof a === 'string' ? a : a.name;

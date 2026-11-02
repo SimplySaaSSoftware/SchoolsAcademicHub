@@ -74,6 +74,9 @@ Super admin page has a **Google Drive** card: status (checked live), **Connect /
 ## Public site address
 Functions run behind a hidden internal host (`…azurewebsites.net`), so the `Host` header is NOT the public address. `lib/site.ts` `publicBase(req, hint)` picks, in order: `SITE_URL` setting, the origin the page reports (`window.location.origin`), `x-ms-original-url` / `Origin` / `Referer`, then Host as a last resort. Used for the Google redirect address (signed into `state` so the callback reuses it) and for password-reset email links.
 
+## Post HTML, videos and safety
+Teacher-written HTML is always shown through `safeHtml()` (`js/safe-html.js`): scripts, forms, event-handler attributes, `javascript:` links and `srcdoc` are removed, and the **only** iframe allowed is a YouTube embed (`youtube-nocookie.com/embed/<11-char id>`, optional `?start=`). The editor's video button (`quillInsertYouTube`) accepts any normal YouTube link (watch, youtu.be, shorts, share links with tracking text, `t=1m30s`) and stores the clean embed address. Never render post HTML any other way. Videos are not synced between languages like images are: adding or changing one makes translations out of date until re-checked.
+
 ## Translations and images
 Images are language-neutral: a translation's images always follow the original (`withSyncedImages`, applied whenever translated text is shown and again when the original is saved). The out-of-date check ignores images (`sourceHash` strips them), so replacing an image keeps a verified translation verified, while any text change or adding/removing an image makes it out of date until a teacher re-checks it.
 

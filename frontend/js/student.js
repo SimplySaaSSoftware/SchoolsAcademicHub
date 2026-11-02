@@ -349,12 +349,7 @@
   function esc(str) {
     return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
-  function sanitize(html) {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    div.querySelectorAll('script,iframe,object,embed').forEach((el) => el.remove());
-    return div.innerHTML;
-  }
+  const sanitize = safeHtml;   // js/safe-html.js
 
   // English <-> Afrikaans: redraw whatever is on screen (a quiz in progress restarts)
   document.addEventListener('uilangchange', () => {
