@@ -50,6 +50,7 @@ export interface StudentDoc extends BaseDoc {
   grade: number;
   pin_lookup: string;   // HMAC of the PIN with a server secret; the PIN itself is never stored
   lang?: Lang;          // preferred interface language, follows the student across devices
+  subjects?: string[];  // subjects the student is enrolled for (stored names). Empty/absent = every subject for their grade
   active: boolean;
 }
 

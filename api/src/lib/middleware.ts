@@ -73,3 +73,16 @@ export async function assertPostAccess(
   const subjects = await teacherSubjects(jwt);
   if (subjects && !subjects.includes(post.subject)) throw new HttpError(404, 'Post not found');
 }
+
+/**
+ * Subjects an individual student is enrolled for. Null = unrestricted: shared grade PINs, other roles,
+ * or a student with no enrolment set (sees every subject for their grade).
+ */
+export async function studentSubjects(jwt: JwtPayload): Promise<string[] | null> {
+  if (jwt.role !== 'student') return null;
+  const rows = await sql<{ subjects: unknown }[]>`
+    SELECT data->'subjects' AS subjects FROM items
+    WHERE id = ${jwt.user_id} AND school_id = ${jwt.school_id} AND type = 'student'`;
+  const s = rows[0]?.subjects;
+  return Array.isArray(s) && s.length > 0 ? (s as string[]) : null;
+}

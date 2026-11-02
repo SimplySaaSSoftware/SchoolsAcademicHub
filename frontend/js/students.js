@@ -25,10 +25,12 @@ const StudentsUI = (() => {
   }
 
   let studentFilter = { grade: '', q: '' };
+  let subjectList = [];   // [{ name, names: { en, af } }]
+  const subjectLabel = (name) => subjectList.find((x) => x.name === name)?.names.en ?? name;
 
   async function renderStudents() {
     let students;
-    try { students = await apiGet('/students'); }
+    try { [students, subjectList] = await Promise.all([apiGet('/students'), apiGet(`/subjects?school_id=${SCHOOL_SLUG}&full=1`).catch(() => [])]); }
     catch (e) { el.innerHTML = `<p style="color:red">${esc(e.message)}</p>`; return; }
 
     const grades = isTeacher() ? [ctx.grade] : (school.grades ?? [1,2,3,4,5,6,7]);
@@ -40,7 +42,8 @@ const StudentsUI = (() => {
       <div class="page-toolbar" style="margin-bottom:1rem">
         <h2 style="margin:0">Students <span style="font-weight:400;color:#888;font-size:.9375rem">(${shown.length}${shown.length !== students.length ? ` of ${students.length}` : ''})</span></h2>
         <div class="toolbar-actions">
-          <button id="btn-import-students" class="btn btn--secondary">Import list</button>
+          <button id="btn-export-students" class="btn btn--secondary">⬇ Export Excel</button>
+          <button id="btn-import-students" class="btn btn--secondary">⬆ Import Excel</button>
           <button id="btn-add-student" class="btn btn--primary">+ Add Student</button>
         </div>
       </div>
@@ -54,12 +57,13 @@ const StudentsUI = (() => {
       ${isTeacher() ? `<div class="student-filters"><input id="st-search" class="form-control" type="search" placeholder="Search name…" value="${esc(studentFilter.q)}"/></div>` : ''}
       <p style="color:#888;font-size:.9375rem;margin:.5rem 0 1rem">PINs are shown once, when created or reset. They are not stored, so use <strong>Reset PIN</strong> if one is lost.</p>
       <div class="student-list">`;
-    if (!shown.length) html += `<p class="dash-empty">${students.length ? 'No students match.' : 'No students yet. Add one or import a list.'}</p>`;
+    if (!shown.length) html += `<p class="dash-empty">${students.length ? 'No students match.' : 'No students yet. Add one, or import an Excel file.'}</p>`;
     shown.forEach((s) => {
       html += `<div class="student-row ${s.active ? '' : 'student-row--off'}">
         <div class="student-row__info">
           <div class="student-row__name">${esc(s.name)}</div>
           <div class="student-row__meta">Grade ${esc(String(s.grade))}${s.active ? '' : ' · Inactive'}</div>
+          <div class="student-row__meta">${s.subjects?.length ? esc(s.subjects.map(subjectLabel).join(', ')) : 'All subjects'}</div>
         </div>
         <div class="student-row__actions">
           <button class="btn btn--secondary btn--sm" data-st="reset" data-id="${esc(s.id)}">Reset PIN</button>
@@ -79,7 +83,8 @@ const StudentsUI = (() => {
       t = setTimeout(async () => { await renderStudents(); const el = document.getElementById('st-search'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); }, 250);
     });
     document.getElementById('btn-add-student').addEventListener('click', () => showStudentModal(null));
-    document.getElementById('btn-import-students').addEventListener('click', showImportModal);
+    document.getElementById('btn-import-students').addEventListener('click', pickImportFile);
+    document.getElementById('btn-export-students').addEventListener('click', exportExcel);
     el.querySelectorAll('[data-st]').forEach((b) => b.addEventListener('click', async () => {
       const s = students.find((x) => x.id === b.dataset.id);
       try {
@@ -104,9 +109,16 @@ const StudentsUI = (() => {
         <input id="s-name" class="form-control" value="${esc(student?.name ?? '')}" autocomplete="off"/></div>
       <div class="form-group"><label class="form-label">Grade *</label>
         <select id="s-grade" class="form-control">${gradeOpts}</select></div>
+      <div class="form-group"><label class="form-label">Subjects</label>
+        ${subjectList.length ? `<div class="subject-picker">${subjectList.map((x) => `
+          <label class="subject-picker__item"><input type="checkbox" value="${esc(x.name)}" ${(student?.subjects ?? []).includes(x.name) ? 'checked' : ''}/> <span>${esc(x.names.en)}</span></label>`).join('')}</div>
+          <p style="color:#888;font-size:.875rem;margin-top:.35rem">Tick none to give the student every subject for their grade.</p>` : '<p style="color:#888;font-size:.9375rem">No subjects set up yet.</p>'}</div>
       <button id="btn-save-student" class="btn btn--primary" style="width:100%">${isEdit ? 'Update' : 'Create &amp; show PIN'}</button>`);
     modal.querySelector('#btn-save-student').addEventListener('click', async () => {
-      const body = { name: modal.querySelector('#s-name').value.trim(), grade: Number(modal.querySelector('#s-grade').value) };
+      const body = {
+        name: modal.querySelector('#s-name').value.trim(), grade: Number(modal.querySelector('#s-grade').value),
+        subjects: [...modal.querySelectorAll('.subject-picker input:checked')].map((i) => i.value),
+      };
       if (!body.name) { showNotify('Name is required.', true); return; }
       try {
         if (isEdit) { await apiPut(`/students/${student.id}`, body); modal.remove(); showNotify('Student updated.'); renderStudents(); }
@@ -115,28 +127,60 @@ const StudentsUI = (() => {
     });
   }
 
-  function showImportModal() {
-    const grades = isTeacher() ? [ctx.grade] : (school.grades ?? [1,2,3,4,5,6,7]);
-    const modal = createModal('Import students', `
-      <p style="font-size:.9375rem;color:#555;margin:0 0 .75rem">One student per line. Add a grade after a comma to override the default, e.g. <code>Thandi Nkosi, 5</code>. Copy a column from Excel and paste it here.</p>
-      <div class="form-group"><label class="form-label">Default grade</label>
-        <select id="i-grade" class="form-control">${grades.map((g) => `<option value="${g}">Grade ${g}</option>`).join('')}</select></div>
-      <div class="form-group"><label class="form-label">Names</label>
-        <textarea id="i-text" class="form-control" rows="10" placeholder="Thandi Nkosi&#10;Pieter van der Merwe, 6"></textarea></div>
-      <button id="btn-do-import" class="btn btn--primary" style="width:100%">Import &amp; generate PINs</button>`);
-    modal.querySelector('#btn-do-import').addEventListener('click', async () => {
-      const def = Number(modal.querySelector('#i-grade').value);
-      const lines = modal.querySelector('#i-text').value.split('\n').map((l) => l.trim()).filter(Boolean);
-      const students = lines.map((l) => {
-        const m = l.match(/^(.*?)[,;\t]\s*(\d{1,2})\s*$/);
-        return m ? { name: m[1].trim(), grade: Number(m[2]) } : { name: l, grade: def };
-      });
-      if (!students.length) { showNotify('Paste at least one name.', true); return; }
-      const btn = modal.querySelector('#btn-do-import'); btn.disabled = true; btn.textContent = `Importing ${students.length}…`;
+  // ── Excel: export, then edit, then import ────────────────────
+  async function exportExcel() {
+    try {
+      const grade = !isTeacher() && studentFilter.grade ? `?grade=${studentFilter.grade}` : '';
+      await downloadExport(`/student-sheet/export${grade}`, `students${studentFilter.grade ? '-grade-' + studentFilter.grade : ''}.xlsx`);
+      showNotify('Downloaded. Edit it in Excel, then use Import Excel.');
+    } catch (e) { showNotify(e.message || 'Export failed', true); }
+  }
+
+  function pickImportFile() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    input.onchange = () => { if (input.files[0]) reviewImport(input.files[0]); };
+    input.click();
+  }
+
+  const uploadSheet = (buf, dry) => apiFetch(`/student-sheet/import${dry ? '?dry=1' : ''}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: buf,
+  });
+
+  // Step 1: check the file without saving anything
+  async function reviewImport(file) {
+    showNotify('Checking file…');
+    let buf, r;
+    try { buf = await file.arrayBuffer(); r = await uploadSheet(buf, true); }
+    catch (e) { showNotify(e.message, true); return; }
+
+    const bad = r.errors.length > 0;
+    const list = (items, fmt) => items.length ? `<div class="pin-list" style="max-height:30vh;margin:.4rem 0 1rem">${items.map((x) => `<div class="pin-row" style="min-height:44px"><div>${fmt(x)}</div></div>`).join('')}</div>` : '';
+    const modal = createModal('Check before saving', `
+      <div class="import-counts">
+        <div><strong>${r.creates.length}</strong><span>new</span></div>
+        <div><strong>${r.updates.length}</strong><span>changed</span></div>
+        <div><strong>${r.unchanged}</strong><span>same</span></div>
+        <div class="${bad ? 'import-counts--bad' : ''}"><strong>${r.errors.length}</strong><span>problems</span></div>
+      </div>
+      ${bad ? `<p style="color:#a33;margin:.5rem 0"><strong>Nothing has been saved.</strong> Fix these rows in Excel and import again:</p>
+        ${list(r.errors, (e) => `<strong>Row ${e.row}</strong> — ${esc(e.message)}`)}` : ''}
+      ${r.warnings.length ? `<p style="color:#7a5b00;font-size:.9375rem">${r.warnings.map(esc).join('<br>')}</p>` : ''}
+      ${!bad && r.creates.length ? `<p style="margin:.5rem 0 0"><strong>New students</strong> (each gets a PIN)</p>${list(r.creates, (c) => `${esc(c.name)} · Grade ${c.grade}`)}` : ''}
+      ${!bad && r.updates.length ? `<p style="margin:.5rem 0 0"><strong>Changed</strong></p>${list(r.updates, (u) => `${esc(u.name)} <span style="color:#888">— ${esc(u.changes.join(', '))}</span>`)}` : ''}
+      ${!bad && !r.creates.length && !r.updates.length ? '<p>Nothing to change. The file matches what is already saved.</p>' : ''}
+      ${!bad && (r.creates.length || r.updates.length) ? '<button id="btn-apply-import" class="btn btn--primary" style="width:100%">Save these changes</button>' : ''}`);
+
+    modal.querySelector('#btn-apply-import')?.addEventListener('click', async (ev) => {
+      ev.target.disabled = true; ev.target.textContent = 'Saving…';
       try {
-        const created = await apiPost('/students/import', { students });
-        modal.remove(); renderStudents(); showPinSheet(`${created.length} students created`, created);
-      } catch (e) { showNotify(e.message, true); btn.disabled = false; btn.textContent = 'Import & generate PINs'; }
+        const done = await uploadSheet(buf, false);
+        modal.remove();
+        renderStudents();
+        if (done.created?.length) showPinSheet(`${done.created.length} new student${done.created.length === 1 ? '' : 's'} added`, done.created);
+        else showNotify('Saved.');
+      } catch (e) { showNotify(e.message, true); ev.target.disabled = false; ev.target.textContent = 'Save these changes'; }
     });
   }
 

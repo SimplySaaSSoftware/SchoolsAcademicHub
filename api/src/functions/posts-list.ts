@@ -2,7 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/fu
 import { sql } from '../lib/db';
 import { originalLang, otherLang } from '../lib/translation';
 import { subjectNameMap, namesFor } from '../lib/subjects';
-import { requireAuth, requireSchoolMatch, errorResponse, effectiveSchoolId, teacherSubjects } from '../lib/middleware';
+import { requireAuth, requireSchoolMatch, errorResponse, effectiveSchoolId, teacherSubjects, studentSubjects } from '../lib/middleware';
 
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
   try {
@@ -14,7 +14,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     const subject = req.query.get('subject');
     const term    = req.query.get('term');
 
-    const allowed = await teacherSubjects(jwt);
+    const allowed = jwt.role === 'student' ? await studentSubjects(jwt) : await teacherSubjects(jwt);
     const subjectClause = allowed ? sql` AND data->>'subject' IN ${sql(allowed)}` : sql``;
 
     const rows = await sql<{ data: any; tmeta: Record<string, { title?: string; status?: string; stale?: boolean }> | null }[]>`
