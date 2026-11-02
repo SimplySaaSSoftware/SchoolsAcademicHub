@@ -436,3 +436,19 @@ select.form-control { appearance: auto; }
 .tr-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.25rem; position: sticky; bottom: 0; background: var(--surface); padding: .75rem 0; }
 .tr-actions .btn { min-height: 44px; flex: 1 1 140px; }
 @media (min-width: 601px) { .tr-opt { grid-template-columns: 1fr 1fr; align-items: center; } }
+
+/* ── Language tabs (teacher editor/review) + dual titles ── */
+.lang-tabs { display: flex; gap: .4rem; margin-bottom: 1rem; }
+.lang-tab {
+  flex: 1; min-height: 44px; padding: 0 .75rem; border: 2px solid var(--primary); border-radius: var(--radius);
+  background: var(--surface); color: var(--primary); font: inherit; font-weight: 600; cursor: pointer;
+}
+.lang-tab--on { background: var(--primary); color: #fff; }
+.lang-tab__mark { font-size: .8125rem; font-weight: 700; margin-left: .25rem; }
+.lang-tab:not(.lang-tab--on) .lang-tab__mark--verified { color: #1e7e34; }
+.lang-tab:not(.lang-tab--on) .lang-tab__mark--stale    { color: #b02a37; }
+.lang-tab:not(.lang-tab--on) .lang-tab__mark--draft    { color: #946c00; }
+.tr-panel--flash { box-shadow: 0 0 0 3px var(--primary); }
+
+.title-alt { font-size: .875rem; color: var(--text-light); margin-top: .15rem; }
+.post-card__alt { font-size: .9375rem; color: var(--text-light); margin: .15rem 0 .25rem; }

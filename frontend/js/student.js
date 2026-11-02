@@ -57,18 +57,26 @@
       (bySubject[p.subject] = bySubject[p.subject] || []).push(p);
     });
 
+    const bilingual = allPosts.some((p) => (p.available_langs ?? []).length > 1);
     let html = '<div class="posts-grid">';
+    if (bilingual) {
+      const cur = prefLang() === 'af' ? 'af' : (prefLang() === 'en' ? 'en' : null);
+      html += `<div class="lang-switch" role="group" aria-label="Language">
+        ${['en', 'af'].map((l) => `<button class="lang-switch__btn ${cur === l ? 'lang-switch__btn--on' : ''}" data-lang="${l}" aria-pressed="${cur === l}">${LANG_LABEL[l]}</button>`).join('')}
+      </div>`;
+    }
     Object.entries(bySubject).forEach(([subject, posts]) => {
       html += `<section class="subject-section">
         <h2 class="subject-heading">${esc(subject)}</h2>
         <div class="cards">`;
       posts.forEach((p) => {
-        const hasQuiz = (() => { try { return JSON.parse(p.quiz_json || '[]').length > 0; } catch { return false; } })();
+        const hasQuiz = !!p.has_quiz;
         html += `<article class="post-card" data-id="${esc(p.id)}" role="button" tabindex="0">
           <div class="post-card__header">
-            <h3 class="post-card__title">${esc((prefLang() && p.titles?.[prefLang()]) || p.title)}</h3>
+            <h3 class="post-card__title">${esc(primaryTitle(p))}</h3>
             ${hasQuiz ? '<span class="badge badge--quiz">Quiz</span>' : ''}
           </div>
+          ${secondaryTitle(p) ? `<p class="post-card__alt" lang="${p.lang === 'af' ? 'en' : 'af'}">${esc(secondaryTitle(p))}</p>` : ''}
           <p class="post-card__meta">Term ${esc(p.term)} &bull; Grade ${esc(String(p.grade))}${(p.available_langs ?? []).length > 1 ? ' &bull; EN / AF' : ''}</p>
         </article>`;
       });
@@ -76,6 +84,11 @@
     });
     html += '</div>';
     main.innerHTML = html;
+
+    main.querySelectorAll('.posts-grid > .lang-switch .lang-switch__btn').forEach((b) => b.addEventListener('click', () => {
+      setPrefLang(b.dataset.lang);
+      renderPostList();
+    }));
 
     main.querySelectorAll('.post-card').forEach((card) => {
       const open = () => openPost(card.dataset.id);
@@ -88,6 +101,14 @@
   const LANG_LABEL = { en: 'English', af: 'Afrikaans' };
   function prefLang() { try { return localStorage.getItem('hub_lang'); } catch { return null; } }
   function setPrefLang(l) { try { localStorage.setItem('hub_lang', l); } catch {} }
+
+  // Title shown big: preferred language when the post has it, else the original
+  const primaryTitle   = (p) => (prefLang() && p.titles?.[prefLang()]) || p.title;
+  // Title shown small underneath: the other language, when the post has one
+  const secondaryTitle = (p) => {
+    const main = primaryTitle(p);
+    return Object.values(p.titles ?? {}).find((t) => t && t !== main) ?? '';
+  };
 
   // ── Post view ───────────────────────────────────────────────
   async function openPost(id, track = true) {
@@ -229,35 +250,34 @@
 
     const startTime = Date.now();
     document.getElementById('btn-submit-quiz').addEventListener('click', async () => {
-      const answers = [];
+      const selections = [];
       let allAnswered = true;
       questions.forEach((q, i) => {
         const sel = section.querySelector(`input[name="q${i}"]:checked`);
         if (!sel) { allAnswered = false; return; }
-        answers.push({ question: q.question, selected_index: Number(sel.value), selected_text: q.options[Number(sel.value)], correct: Number(sel.value) === q.correct_index });
+        selections.push(Number(sel.value));
       });
       if (!allAnswered) { showNotify('Please answer all questions.', true); return; }
 
-      const score   = answers.filter((a) => a.correct).length;
       const btn     = document.getElementById('btn-submit-quiz');
       btn.disabled  = true; btn.textContent = 'Submitting…';
 
       try {
+        // Server grades the quiz; we only send which option was picked
         const result = await apiPost('/activity/quiz-attempt', {
-          post_id: post.id, post_title: post.title, subject: post.subject, term: post.term, lang: post.lang,
-          score, total: questions.length, answers,
+          post_id: post.id, lang: post.lang, selections,
           time_taken_seconds: Math.round((Date.now() - startTime) / 1000),
         });
+        const score = result.score;
 
-        // Show results
         section.querySelectorAll('.quiz-question').forEach((el, i) => {
-          const a = answers[i];
-          el.classList.add(a.correct ? 'quiz-question--correct' : 'quiz-question--wrong');
+          const r = result.results[i];
+          el.classList.add(r.is_right ? 'quiz-question--correct' : 'quiz-question--wrong');
           el.querySelectorAll('input').forEach((inp) => inp.disabled = true);
-          if (!a.correct) {
+          if (!r.is_right) {
             const hint = document.createElement('p');
             hint.className = 'quiz-hint';
-            hint.textContent = `Correct answer: ${questions[i].options[questions[i].correct_index]}`;
+            hint.textContent = `Correct answer: ${questions[i].options[r.correct_index]}`;
             el.appendChild(hint);
           }
         });

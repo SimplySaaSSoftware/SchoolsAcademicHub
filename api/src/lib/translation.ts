@@ -42,7 +42,18 @@ export function translationState(t?: Translation): 'none' | 'draft' | 'verified'
   return t.status;
 }
 
-/** Student-facing view: overlay verified translation text onto the original; grading data stays original. */
+/** Quiz questions in the served language. correct_index always comes from the original quiz. */
+export function quizForLang(post: PostDoc, lang: Lang | null) {
+  const orig = originalLang(post);
+  const t = lang && lang !== orig && availableLangs(post).includes(lang) ? post.translations![lang] : undefined;
+  return parseQuiz(post.quiz_json).map((q, i) => ({
+    ...q,
+    question: t?.quiz[i]?.question ?? q.question,
+    options:  q.options.map((o, oi) => t?.quiz[i]?.options?.[oi] ?? o),
+  }));
+}
+
+/** Student-facing view: verified translation text overlaid on the original. Never includes correct answers. */
 export function localizePost(post: PostDoc, lang: Lang | null): Record<string, unknown> {
   const { audit, translations, ...rest } = post;
   const orig = originalLang(post);
@@ -51,14 +62,10 @@ export function localizePost(post: PostDoc, lang: Lang | null): Record<string, u
   const out: Record<string, unknown> = { ...rest, lang: use, original_lang: orig, available_langs: available };
   if (use !== orig) {
     const t = translations![use]!;
-    const quiz = parseQuiz(post.quiz_json).map((q, i) => ({
-      ...q,
-      question: t.quiz[i]?.question ?? q.question,
-      options:  q.options.map((o, oi) => t.quiz[i]?.options?.[oi] ?? o),
-    }));
     out.title = t.title;
     out.content_html = t.content_html;
-    out.quiz_json = JSON.stringify(quiz);
   }
+  // Students get questions and options only: grading happens on the server
+  out.quiz_json = JSON.stringify(quizForLang(post, use).map(({ question, options }) => ({ question, options })));
   return out;
 }

@@ -36,11 +36,15 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
         const t = tmeta?.[other];
         const state = !t ? 'none' : t.stale ? 'stale' : (t.status ?? 'draft');
         const live  = state === 'verified';
+        const isStudent = jwt.role === 'student';
+        const hasQuiz = (() => { try { return JSON.parse(data.quiz_json || '[]').length > 0; } catch { return false; } })();
+        if (isStudent) delete data.quiz_json;   // contains correct answers: students get has_quiz only
         return {
           ...data,
+          has_quiz: hasQuiz,
           lang: orig,
           available_langs: live ? [orig, other] : [orig],
-          titles: live ? { [orig]: data.title, [other]: t!.title } : { [orig]: data.title },
+          titles: (live || (t && jwt.role !== 'student')) ? { [orig]: data.title, [other]: t!.title } : { [orig]: data.title },
           translation_state: jwt.role === 'student' ? undefined : { [other]: state },
         };
       }),
