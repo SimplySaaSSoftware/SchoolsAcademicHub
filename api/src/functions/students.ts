@@ -47,7 +47,11 @@ function cleanGrade(v: unknown): number {
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
   try {
     const jwt = requireAuth(req);
-    requireRole(jwt, ['admin', 'super_admin']);
+    requireRole(jwt, ['admin', 'super_admin', 'teacher']);
+    const isTeacher = jwt.role === 'teacher';
+    // Class teachers work with their own grade only: list, add, import and reset PINs
+    if (isTeacher && !jwt.grade) throw new HttpError(403, 'Your account has no grade assigned');
+    const teacherGrade = isTeacher ? Number(jwt.grade) : null;
     const schoolId = effectiveSchoolId(req, jwt);
     if (!schoolId || schoolId === 'system') throw new HttpError(400, 'school required');
     const id = req.params.id;
@@ -55,7 +59,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
 
     // GET /students[?grade=]
     if (req.method === 'GET') {
-      const grade = req.query.get('grade');
+      const grade = isTeacher ? String(teacherGrade) : req.query.get('grade');
       const rows = await sql<{ data: StudentDoc }[]>`
         SELECT data FROM items WHERE school_id = ${schoolId} AND type = 'student'
           AND (${!grade} = true OR data->>'grade' = ${grade ?? ''})
@@ -73,7 +77,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       const created: Array<ReturnType<typeof publicView> & { pin: string }> = [];
       for (const s of list) {
         const { pin, lookup } = uniquePin(used);
-        const doc = makeDoc(schoolId, cleanName(s.name), cleanGrade(s.grade), lookup);
+        const doc = makeDoc(schoolId, cleanName(s.name), teacherGrade ?? cleanGrade(s.grade), lookup);
         await insertItem(doc);
         created.push({ ...publicView(doc), pin });
       }
@@ -84,7 +88,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     if (req.method === 'POST' && !id) {
       const body = await req.json() as { name?: unknown; grade?: unknown };
       const { pin, lookup } = uniquePin(await usedLookups(schoolId));
-      const doc = makeDoc(schoolId, cleanName(body.name), cleanGrade(body.grade), lookup);
+      const doc = makeDoc(schoolId, cleanName(body.name), teacherGrade ?? cleanGrade(body.grade), lookup);
       await insertItem(doc);
       return { status: 201, jsonBody: { ...publicView(doc), pin } };
     }
@@ -92,10 +96,14 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     // POST /students/{id}/reset-pin
     if (req.method === 'POST' && id && action === 'reset-pin') {
       const { pin, lookup } = uniquePin(await usedLookups(schoolId));
-      const existing = await sql<{ id: string }[]>`SELECT id FROM items WHERE id = ${id} AND school_id = ${schoolId} AND type = 'student'`;
-      if (!existing[0]) throw new HttpError(404, 'Student not found');
+      const existing = await sql<{ g: string }[]>`SELECT data->>'grade' AS g FROM items WHERE id = ${id} AND school_id = ${schoolId} AND type = 'student'`;
+      if (!existing[0] || (teacherGrade && Number(existing[0].g) !== teacherGrade)) throw new HttpError(404, 'Student not found');
       await updateItemById<StudentDoc>(id, schoolId, 'student', { pin_lookup: lookup });
       return { jsonBody: { id, pin } };
+    }
+
+    if ((req.method === 'PUT' || req.method === 'DELETE') && isTeacher) {
+      throw new HttpError(403, 'Only an admin can edit, deactivate or delete students');
     }
 
     // PUT /students/{id}  { name?, grade?, active? }

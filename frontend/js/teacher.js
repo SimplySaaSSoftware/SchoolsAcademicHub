@@ -66,10 +66,23 @@
   function renderView() {
     if (view.name === 'subject') renderSubject(view.grade, view.subject);
     else if (view.name === 'all') renderPostList(allPosts, { title: 'All Posts', back: true });
+    else if (view.name === 'students') renderStudentsView();
     else renderDashboard();
   }
 
   const pctText = (v) => (v == null ? '–' : `${v}%`);
+
+  function renderStudentsView() {
+    main.innerHTML = `
+      <div class="page-toolbar">
+        <button id="btn-back-dash" class="btn btn--ghost btn--sm">&larr; Dashboard</button>
+      </div>
+      <div class="dash-wrap" id="students-panel"></div>`;
+    document.getElementById('btn-back-dash').addEventListener('click', () => { view = { name: 'dashboard' }; renderView(); });
+    StudentsUI.mount(document.getElementById('students-panel'), {
+      school, role: session.role === 'teacher' ? 'teacher' : 'admin', grade: session.grade, notify: showNotify,
+    });
+  }
 
   function renderDashboard() {
     const isTeacher = session.role === 'teacher';
@@ -88,6 +101,7 @@
       <div class="page-toolbar">
         <h1 class="page-title">${isTeacher && session.grade ? `Grade ${esc(String(session.grade))} Dashboard` : 'Dashboard'}</h1>
         <div class="toolbar-actions">
+          <button id="btn-students" class="btn btn--secondary">Students</button>
           <button id="btn-all-posts" class="btn btn--secondary">All Posts</button>
           <button id="btn-new-post" class="btn btn--primary">+ New Post</button>
         </div>
@@ -139,6 +153,7 @@
 
     document.getElementById('btn-new-post').addEventListener('click', () => showEditor(null));
     document.getElementById('btn-all-posts').addEventListener('click', () => { view = { name: 'all' }; renderView(); });
+    document.getElementById('btn-students').addEventListener('click', () => { view = { name: 'students' }; renderView(); });
     document.getElementById('dash-grade')?.addEventListener('change', (e) => { adminGrade = e.target.value; renderDashboard(); });
     main.querySelectorAll('.dash-card').forEach((el) => el.addEventListener('click', () => {
       view = { name: 'subject', grade: Number(el.dataset.grade), subject: el.dataset.subject };

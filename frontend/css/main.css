@@ -462,3 +462,12 @@ select.form-control { appearance: auto; }
 .pin-row:last-child { border-bottom: 0; }
 .pin-row__name { font-weight: 600; overflow-wrap: anywhere; }
 .pin-row__grade { font-size: .875rem; color: var(--text-light); }
+.student-list { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); }
+.student-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem .75rem; padding: .75rem 1rem; border-bottom: 1px solid var(--border); }
+.student-row:last-child { border-bottom: 0; }
+.student-row--off { opacity: .6; }
+.student-row__info { flex: 1 1 180px; min-width: 0; }
+.student-row__name { font-weight: 600; overflow-wrap: anywhere; }
+.student-row__meta { font-size: .875rem; color: var(--text-light); }
+.student-row__actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+.student-row__actions .btn { min-height: 44px; }
