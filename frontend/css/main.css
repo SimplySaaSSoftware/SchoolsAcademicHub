@@ -614,3 +614,15 @@ summary.subject-heading > span:first-child { flex: 1; }
 @media (max-width: 600px) {
   .notification { left: 1rem; right: 1rem; max-width: none; font-size: 1rem; }
 }
+
+/* ── Super admin: Google Drive card ───────────────────── */
+.drive-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1rem; margin-bottom: 1.25rem; }
+.drive-card__head { display: flex; align-items: center; gap: .5rem; font-size: 1.05rem; margin-bottom: .35rem; }
+.drive-card__dot { width: 12px; height: 12px; border-radius: 50%; background: #aaa; }
+.drive-card__dot--ok { background: #28a745; } .drive-card__dot--warn { background: #e0a800; } .drive-card__dot--bad { background: #dc3545; }
+.drive-card__line { margin: 0 0 .75rem; font-size: .9375rem; color: var(--text-light); overflow-wrap: anywhere; }
+.drive-card__line--bad { color: #a33; } .drive-card__line--ok { color: #1e7e34; }
+.drive-card__actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.drive-card__help { margin-top: .75rem; font-size: .9375rem; }
+.drive-card__help summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--primary); font-weight: 600; }
+.drive-card__help code { word-break: break-all; background: var(--bg); padding: .15rem .4rem; border-radius: 4px; }

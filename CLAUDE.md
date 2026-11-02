@@ -68,6 +68,9 @@ Each subject has an English and an Afrikaans display name (`SubjectDoc.names`), 
 ## Student dashboard
 Individual students get a progress summary and **To do / Done / All** tabs (default To do), grouped by subject, with the best quiz score and attempt count on each card. `GET /posts` adds `progress` per post for individual students only (opened, attempts, best, last, passed); shared grade PINs get none and see everything. A quiz counts as done when passed (80%+, same pass mark as `activity-quiz-attempt`); a post without a quiz is done once opened.
 
+## Google Drive connection
+Super admin page has a **Google Drive** card: status (checked live), **Connect / Reconnect Google Drive**, Disconnect. Connect runs Google's OAuth flow (`functions/google-drive.ts`): `POST /google/connect-url` → Google → `GET /google/callback` (proved by a signed `state`) → the refresh token is stored AES-encrypted in an `items` doc `google-drive-token` (type `setting`, school_id `system`; `lib/secrets.ts`). `lib/drive.ts` reads that first, then falls back to `GOOGLE_REFRESH_TOKEN`. One-time Google setup: add `{SITE_URL}/api/google/callback` under the client's Authorised redirect URIs (the card shows the exact value), and keep the OAuth app **In production** (Testing mode tokens expire after 7 days).
+
 ## Translations and images
 Images are language-neutral: a translation's images always follow the original (`withSyncedImages`, applied whenever translated text is shown and again when the original is saved). The out-of-date check ignores images (`sourceHash` strips them), so replacing an image keeps a verified translation verified, while any text change or adding/removing an image makes it out of date until a teacher re-checks it.
 
@@ -89,7 +92,8 @@ Graded on the server only. Students receive questions and options without `corre
 | `RESEND_API_KEY` | Resend API key for transactional emails |
 | `RESEND_FROM` | From address for emails |
 | `DRIVE_ROOT_FOLDER_ID` | Google Drive folder that holds uploaded attachments |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN` | Google OAuth for Drive uploads (`api/src/lib/drive.ts`). If uploads fail with "Google rejected the saved refresh token", create a new refresh token |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google OAuth client for Drive uploads (`api/src/lib/drive.ts`) |
+| `GOOGLE_REFRESH_TOKEN` | Optional, older way. The token is now saved by Super Admin → Google Drive → Connect (encrypted, in the database); this setting is only the fallback |
 | `ANTHROPIC_API_KEY` | Claude API key for AI translation (English ⇄ Afrikaans). Without it the Generate button returns a clear error; manual translation still works |
 | `ANTHROPIC_MODEL` | Optional. Model for AI translation (default `claude-sonnet-5-5`) |
 
