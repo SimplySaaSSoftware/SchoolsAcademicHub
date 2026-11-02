@@ -10,7 +10,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     const post = await getItemById<PostDoc>(req.params.id);
     if (!post) throw new HttpError(404, 'Post not found');
     await assertPostAccess(jwt, post);
-    if (jwt.role === 'student' && post.status !== 'published') throw new HttpError(404, 'Post not found');
+    if (jwt.role === 'student' && (post.status !== 'published' || (jwt.grade && Number(post.grade) !== Number(jwt.grade)))) throw new HttpError(404, 'Post not found');
     if (jwt.role === 'student') {
       const lang = req.query.get('lang');
       return { jsonBody: localizePost(post, isLang(lang) ? lang : null) };

@@ -452,3 +452,13 @@ select.form-control { appearance: auto; }
 
 .title-alt { font-size: .875rem; color: var(--text-light); margin-top: .15rem; }
 .post-card__alt { font-size: .9375rem; color: var(--text-light); margin: .15rem 0 .25rem; }
+
+/* ── Admin: students ──────────────────────────────────── */
+.student-filters { display: grid; grid-template-columns: 1fr; gap: .5rem; }
+.pin-big { font-size: 1.35rem; letter-spacing: .12em; font-variant-numeric: tabular-nums; }
+@media (min-width: 601px) { .student-filters { grid-template-columns: 200px 1fr; } }
+.pin-list { max-height: 50vh; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+.pin-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .6rem .9rem; min-height: 56px; border-bottom: 1px solid var(--border); }
+.pin-row:last-child { border-bottom: 0; }
+.pin-row__name { font-weight: 600; overflow-wrap: anywhere; }
+.pin-row__grade { font-size: .875rem; color: var(--text-light); }

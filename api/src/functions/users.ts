@@ -29,12 +29,17 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       const schoolId = jwt.role === 'super_admin' ? (body.slug ?? effectiveSchoolId(req, jwt)) : effectiveSchoolId(req, jwt);
       if (!schoolId || schoolId === 'system') throw new HttpError(400, 'slug required when creating user as super admin');
 
+      const email = body.email.toLowerCase().trim();
+      const dupes = await sql<{ id: string }[]>`
+        SELECT id FROM items WHERE school_id = ${schoolId} AND type = 'user' AND data->>'email' = ${email}`;
+      if (dupes.length > 0) throw new HttpError(409, 'A user with this email already exists in this school');
+
       const doc: UserDoc = {
         id:            randomUUID(),
         school_id:     schoolId,
         type:          'user',
         role:          body.role as UserDoc['role'],
-        email:         body.email.toLowerCase().trim(),
+        email,
         password_hash: await hashPassword(body.password),
         name:          body.name.trim(),
         grade:         body.grade ? Number(body.grade) : undefined,

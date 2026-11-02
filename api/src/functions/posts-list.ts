@@ -23,6 +23,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       FROM items
       WHERE school_id = ${school_id} AND type = 'post'
         AND (${jwt.role === 'student'} = false OR data->>'status' = 'published')
+        AND (${jwt.role !== 'student' || !jwt.grade} = true OR data->>'grade' = ${String(jwt.grade ?? '')})
         AND (${jwt.role === 'teacher' && !grade} = false OR data->>'grade' = ${grade ?? String(jwt.grade ?? '')})
         AND (${!grade || jwt.role !== 'teacher'} = true OR data->>'grade' = ${grade ?? ''})
         AND (${!subject} = true OR data->>'subject' = ${subject ?? ''})

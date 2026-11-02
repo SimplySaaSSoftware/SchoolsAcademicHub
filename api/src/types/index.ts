@@ -42,6 +42,16 @@ export interface UserDoc extends BaseDoc {
   active: boolean;
 }
 
+// ---- Students (individual PIN login) ----
+
+export interface StudentDoc extends BaseDoc {
+  type: 'student';
+  name: string;
+  grade: number;
+  pin_lookup: string;   // HMAC of the PIN with a server secret; the PIN itself is never stored
+  active: boolean;
+}
+
 // ---- PINs ----
 
 export interface PinDoc extends BaseDoc {

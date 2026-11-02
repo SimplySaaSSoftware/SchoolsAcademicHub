@@ -1,7 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { sql, insertItem, deleteItemById } from '../lib/db';
 import { requireAuth, requireRole, errorResponse, HttpError, effectiveSchoolId } from '../lib/middleware';
-import { hashPin } from '../lib/auth';
+import { hashPin, pinLookup } from '../lib/auth';
 import { PinDoc } from '../types';
 import { randomUUID } from 'crypto';
 
@@ -21,6 +21,10 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       const body = await req.json() as { role: string; grade?: number; pin: string; label: string; subjects?: string[] };
       if (!body.role || !body.pin || !body.label) throw new HttpError(400, 'role, pin, and label required');
       if (!/^\d{4,8}$/.test(body.pin)) throw new HttpError(400, 'PIN must be 4-8 digits');
+
+      const clash = await sql<{ id: string }[]>`
+        SELECT id FROM items WHERE school_id = ${schoolId} AND type = 'student' AND data->>'pin_lookup' = ${pinLookup(body.pin)}`;
+      if (clash.length > 0) throw new HttpError(409, 'That PIN is already used by a student. Choose a different one.');
 
       const doc: PinDoc = {
         id:         randomUUID(),
