@@ -642,3 +642,25 @@ iframe.ql-video, .post-content iframe, .ql-editor iframe, .tr-orig iframe {
   html body .ql-toolbar.ql-snow .ql-picker { height: 44px; display: inline-flex; align-items: center; }
   html body .ql-toolbar.ql-snow .ql-picker-label { padding: 0 8px; line-height: 44px; height: 44px; display: inline-flex; align-items: center; }
 }
+
+/* ── Rich-text editor built-in labels in Afrikaans (they are drawn by CSS, so the page translator cannot reach them) ── */
+html[lang="af"] .ql-snow .ql-tooltip[data-mode="link"]::before { content: "Voer skakel in:"; }
+html[lang="af"] .ql-snow .ql-tooltip[data-mode="video"]::before { content: "Voer video in:"; }
+html[lang="af"] .ql-snow .ql-tooltip::before { content: "Besoek URL:"; }
+html[lang="af"] .ql-snow .ql-tooltip a.ql-action::after { content: "Wysig"; }
+html[lang="af"] .ql-snow .ql-tooltip a.ql-remove::before { content: "Verwyder"; }
+html[lang="af"] .ql-snow .ql-tooltip.ql-editing a.ql-action::after { content: "Stoor"; }
+html[lang="af"] .ql-snow .ql-picker.ql-header .ql-picker-label::before,
+html[lang="af"] .ql-snow .ql-picker.ql-header .ql-picker-item::before { content: "Normaal"; }
+html[lang="af"] .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="1"]::before,
+html[lang="af"] .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="1"]::before { content: "Opskrif 1"; }
+html[lang="af"] .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="2"]::before,
+html[lang="af"] .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="2"]::before { content: "Opskrif 2"; }
+html[lang="af"] .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="3"]::before,
+html[lang="af"] .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="3"]::before { content: "Opskrif 3"; }
+@media (max-width: 600px) {
+  .attachment-dl { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+}
+
+/* Wide tables scroll inside their own box on every screen size (Afrikaans headings are longer than English) */
+.table-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
