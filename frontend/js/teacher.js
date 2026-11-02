@@ -21,8 +21,18 @@
     sessionStorage.setItem(_brandKey, _color);
   } catch {}
 
+  // Header: language switch, and the teacher's name and grade on their own row on phones
+  mountLangToggle(document.getElementById('lang-toggle-wrap'));
   const gradeBadge = document.getElementById('teacher-grade');
   if (gradeBadge && session.grade) gradeBadge.textContent = `Grade ${session.grade}`;
+  const whoEl = document.getElementById('student-name');
+  if (whoEl && (session.name || session.grade)) {
+    const label = session.grade ? `Grade ${session.grade}` : '';
+    whoEl.innerHTML = `${session.name ? esc(session.name) : ''}${session.name && label ? ' ' : ''}${label ? `<span class="site-header__grade">${session.name ? '· ' : ''}${label}</span>` : ''}`;
+    whoEl.classList.toggle('site-header__user--grade-only', !session.name);
+    whoEl.hidden = false;
+  }
+  startStaffTranslation();
   document.getElementById('btn-logout').addEventListener('click', logout);
 
   let _notifyTimer;
@@ -42,10 +52,14 @@
   // Cached ref data
   let subjects = [], terms = [];
   async function loadRefData() {
-    [subjects, terms] = await Promise.all([
+    let names = [];
+    [subjects, terms, names] = await Promise.all([
       apiGet(`/subjects?school_id=${SCHOOL_SLUG}`).catch(() => []),
       apiGet(`/terms?school_id=${SCHOOL_SLUG}`).catch(() => []),
+      apiGet(`/subjects?school_id=${SCHOOL_SLUG}&full=1`).catch(() => []),   // display names only; the list above is what this teacher may use
     ]);
+    // Subject names are data, so the screen translator learns them here (English name → Afrikaans name)
+    addStaffAf(Object.fromEntries(names.filter((s) => s.names?.af && s.names.en !== s.names.af).map((s) => [s.names.en, s.names.af])));
   }
 
   // ── Views: dashboard (per subject/grade) → subject detail → all posts ──
