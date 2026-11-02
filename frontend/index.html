@@ -17,57 +17,59 @@
   </div>
 
   <div class="login-card" id="login-card" hidden>
-    <h1 class="login-card__title">Sign in</h1>
+    <div id="lang-toggle-wrap" class="lang-toggle-wrap"></div>
+    <h1 class="login-card__title" data-i18n="signIn">Sign in</h1>
     <div id="error-banner" class="error-banner" role="alert" hidden></div>
 
     <!-- PIN form -->
     <form id="pin-form" hidden novalidate data-form-type="other">
       <div class="form-group">
-        <label class="form-label" for="pin-input">PIN</label>
+        <label class="form-label" for="pin-input" data-i18n="pin">PIN</label>
         <input id="pin-input" class="form-control pin-input" type="password"
                inputmode="numeric" pattern="[0-9]*" maxlength="8"
-               placeholder="Enter your PIN" autocomplete="off"
+               placeholder="Enter your PIN" data-i18n-placeholder="enterPin" autocomplete="off"
                data-lpignore="true" data-1p-ignore data-bwignore required/>
       </div>
-      <button type="submit" class="btn btn--primary">Continue</button>
+      <button type="submit" class="btn btn--primary" data-i18n="continue">Continue</button>
     </form>
 
     <!-- Email / password form -->
     <form id="email-form" hidden novalidate>
       <div class="form-group">
-        <label class="form-label" for="email-input">Email</label>
+        <label class="form-label" for="email-input" data-i18n="email">Email</label>
         <input id="email-input" class="form-control" type="email" required autocomplete="email"/>
       </div>
       <div class="form-group">
-        <label class="form-label" for="password-input">Password</label>
+        <label class="form-label" for="password-input" data-i18n="password">Password</label>
         <input id="password-input" class="form-control" type="password" required autocomplete="current-password"/>
       </div>
-      <button type="submit" class="btn btn--primary">Sign in</button>
+      <button type="submit" class="btn btn--primary" data-i18n="signIn">Sign in</button>
       <p style="text-align:center;margin-top:1rem;">
-        <a href="#" id="forgot-link" class="login-link">Forgot password?</a>
+        <a href="#" id="forgot-link" class="login-link" data-i18n="forgot">Forgot password?</a>
       </p>
     </form>
 
     <!-- Forgot password form -->
     <form id="reset-form" hidden novalidate>
-      <p style="margin-bottom:1rem;font-size:0.9rem;color:var(--text-light);">Enter your email and we'll send a reset link.</p>
+      <p style="margin-bottom:1rem;font-size:0.9375rem;color:var(--text-light);" data-i18n="resetIntro">Enter your email and we'll send a reset link.</p>
       <div class="form-group">
-        <label class="form-label" for="reset-email">Email</label>
+        <label class="form-label" for="reset-email" data-i18n="email">Email</label>
         <input id="reset-email" class="form-control" type="email" required autocomplete="email"/>
       </div>
-      <button type="submit" class="btn btn--primary">Send Reset Link</button>
+      <button type="submit" class="btn btn--primary" data-i18n="sendReset">Send Reset Link</button>
       <p style="text-align:center;margin-top:1rem;">
-        <a href="#" id="back-to-login" class="login-link">Back to sign in</a>
+        <a href="#" id="back-to-login" class="login-link" data-i18n="backToSignIn">Back to sign in</a>
       </p>
     </form>
   </div>
 
-  <div id="loading-msg" style="text-align:center;padding:3rem;color:#888;">Loading&hellip;</div>
+  <div id="loading-msg" style="text-align:center;padding:3rem;color:#888;" data-i18n="loading">Loading…</div>
   <p class="login-footer">&copy; <span id="year"></span> Academic Hub</p>
 
 </main>
 
 <script src="/js/config.js"></script>
+<script src="/js/i18n.js"></script>
 <script src="/js/auth.js"></script>
 <script src="/js/api.js"></script>
 <script>
@@ -96,7 +98,7 @@ function hideError()    { errBanner.hidden = true; }
   try {
     school = await apiGet(`/school/config/${SCHOOL_SLUG}`);
   } catch {
-    document.getElementById('loading-msg').textContent = 'School not found.';
+    document.getElementById('loading-msg').textContent = t('schoolNotFound');
     return;
   }
 
@@ -119,7 +121,7 @@ function hideError()    { errBanner.hidden = true; }
     // Add a "Staff login" link below the PIN form
     const staffLink = document.createElement('p');
     staffLink.style.cssText = 'text-align:center;margin-top:1rem';
-    staffLink.innerHTML = '<a href="#" id="staff-login-link" class="login-link">Staff login (email &amp; password)</a>';
+    staffLink.innerHTML = '<a href="#" id="staff-login-link" class="login-link" data-i18n="staffLogin"></a>';
     document.getElementById('pin-form').appendChild(staffLink);
     document.getElementById('staff-login-link').addEventListener('click', (e) => {
       e.preventDefault();
@@ -131,18 +133,23 @@ function hideError()    { errBanner.hidden = true; }
     document.getElementById('email-form').hidden = false;
   }
 
+  // English / Afrikaans: switch + translate everything now that all links exist
+  mountLangToggle(document.getElementById('lang-toggle-wrap'));
+  applyI18n();
+  document.addEventListener('uilangchange', () => applyI18n());
+
   // PIN submit
   document.getElementById('pin-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     hideError();
     const btn = e.target.querySelector('button[type="submit"]');
-    btn.disabled = true; btn.textContent = 'Verifying…';
+    btn.disabled = true; btn.textContent = t('verifying');
     try {
       const session = await login(SCHOOL_SLUG, { pin: document.getElementById('pin-input').value.trim() });
       redirectRole(session.role);
     } catch (err) {
-      showError(err.message);
-      btn.disabled = false; btn.textContent = 'Continue';
+      showError(tErr(err.message));
+      btn.disabled = false; btn.textContent = t('continue');
       document.getElementById('pin-input').value = '';
     }
   });
@@ -152,7 +159,7 @@ function hideError()    { errBanner.hidden = true; }
     e.preventDefault();
     hideError();
     const btn = e.target.querySelector('button[type="submit"]');
-    btn.disabled = true; btn.textContent = 'Signing in…';
+    btn.disabled = true; btn.textContent = t('signingIn');
     try {
       const session = await login(SCHOOL_SLUG, {
         email:    document.getElementById('email-input').value.trim(),
@@ -160,8 +167,8 @@ function hideError()    { errBanner.hidden = true; }
       });
       redirectRole(session.role);
     } catch (err) {
-      showError(err.message);
-      btn.disabled = false; btn.textContent = 'Sign in';
+      showError(tErr(err.message));
+      btn.disabled = false; btn.textContent = t('signIn');
     }
   });
 
@@ -169,7 +176,7 @@ function hideError()    { errBanner.hidden = true; }
   if (hasPinAuth) {
     const backLink = document.createElement('p');
     backLink.style.cssText = 'text-align:center;margin-top:0.5rem';
-    backLink.innerHTML = '<a href="#" id="back-to-pin-link" class="login-link">← Student PIN login</a>';
+    backLink.innerHTML = '<a href="#" id="back-to-pin-link" class="login-link" data-i18n="studentPinLogin"></a>';
     document.getElementById('email-form').appendChild(backLink);
     document.getElementById('back-to-pin-link').addEventListener('click', (e) => {
       e.preventDefault();
@@ -196,15 +203,15 @@ function hideError()    { errBanner.hidden = true; }
     e.preventDefault();
     hideError();
     const btn = e.target.querySelector('button');
-    btn.disabled = true; btn.textContent = 'Sending…';
+    btn.disabled = true; btn.textContent = t('sending');
     try {
       await requestPasswordReset(SCHOOL_SLUG, document.getElementById('reset-email').value.trim());
       errBanner.className = 'error-banner error-banner--success';
-      showError('Reset link sent — check your email.');
+      showError(t('resetSent'));
     } catch (err) {
-      showError(err.message);
+      showError(tErr(err.message));
     }
-    btn.disabled = false; btn.textContent = 'Send Reset Link';
+    btn.disabled = false; btn.textContent = t('sendReset');
   });
 })();
 

@@ -530,3 +530,24 @@ select.form-control { appearance: auto; }
 .login-link { display: inline-block; padding: .75rem .5rem; min-height: 44px; font-size: 1rem; }
 .login-footer { font-size: .875rem; }
 .link-action { padding: .7rem 0; }
+
+/* ── English | Afrikaans switch ───────────────────────── */
+.lang-toggle { display: inline-flex; border: 2px solid currentColor; border-radius: 999px; overflow: hidden; }
+.lang-toggle__btn {
+  min-width: 48px; min-height: 40px; padding: 0 .6rem; border: 0; background: transparent;
+  color: inherit; font: inherit; font-weight: 700; font-size: .9375rem; cursor: pointer;
+}
+.lang-toggle__btn--on { background: #fff; color: var(--primary); }
+.site-header .lang-toggle { border-color: rgba(255,255,255,.7); }
+.lang-toggle-wrap { display: flex; justify-content: flex-end; margin-bottom: .75rem; color: var(--primary); }
+.lang-toggle-wrap .lang-toggle__btn--on { background: var(--primary); color: #fff; }
+.lang-toggle-wrap .lang-toggle__btn { min-height: 44px; }
+.site-header__grade { font-weight: 500; opacity: .9; }
+@media (min-width: 601px) { .site-header__user--grade-only { display: none; } .site-header__grade { display: none; } .site-header__user .site-header__grade { display: none; } }
+@media (max-width: 600px) {
+  .site-header--student .grade-badge { display: none; }   /* grade moves to the name row on phones */
+  .site-header--student .lang-toggle__btn { min-height: 44px; min-width: 44px; }
+}
+@media (max-width: 600px) {
+  .site-header--student .site-header__brand { white-space: normal; overflow: visible; text-overflow: clip; font-size: .95rem; line-height: 1.2; }
+}

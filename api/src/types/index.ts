@@ -49,6 +49,7 @@ export interface StudentDoc extends BaseDoc {
   name: string;
   grade: number;
   pin_lookup: string;   // HMAC of the PIN with a server secret; the PIN itself is never stored
+  lang?: Lang;          // preferred interface language, follows the student across devices
   active: boolean;
 }
 

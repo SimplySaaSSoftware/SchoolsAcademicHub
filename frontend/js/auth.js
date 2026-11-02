@@ -45,6 +45,8 @@ async function login(slug, credentials) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Login failed');
   saveSession(data);
+  // A student's saved language follows them to this device
+  if (data.lang === 'en' || data.lang === 'af') { try { localStorage.setItem('hub_lang', data.lang); } catch {} }
   return data;
 }
 
