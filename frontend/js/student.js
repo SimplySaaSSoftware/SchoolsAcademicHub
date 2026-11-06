@@ -239,6 +239,46 @@
     }
   }
 
+  // ── KaTeX math rendering ──────────────────────────────────────
+  function loadKatex(cb) {
+    if (window.katex) { cb(); return; }
+    if (!document.querySelector('link[href*="katex"]')) {
+      const lnk = document.createElement('link');
+      lnk.rel  = 'stylesheet';
+      lnk.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css';
+      document.head.appendChild(lnk);
+    }
+    const s = document.createElement('script');
+    s.src    = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js';
+    s.onload = cb;
+    document.head.appendChild(s);
+  }
+
+  function renderMathText(text) {
+    if (!text) return '';
+    if (/<[a-z][\s\S]*>/i.test(text)) return sanitize(text);
+    if (!window.katex || !text.includes('$')) return esc(text);
+    let html = '', i = 0;
+    while (i < text.length) {
+      if (text[i] === '$') {
+        const display = text[i + 1] === '$';
+        const delim   = display ? '$$' : '$';
+        const start   = i + delim.length;
+        const end     = text.indexOf(delim, start);
+        if (end === -1) { html += esc(text[i]); i++; continue; }
+        try { html += window.katex.renderToString(text.slice(start, end), { displayMode: display, throwOnError: false }); }
+        catch { html += esc(delim + text.slice(start, end) + delim); }
+        i = end + delim.length;
+      } else {
+        const next  = text.indexOf('$', i);
+        const chunk = next === -1 ? text.slice(i) : text.slice(i, next);
+        html += esc(chunk);
+        i = next === -1 ? text.length : next;
+      }
+    }
+    return html;
+  }
+
   // ── Quiz renderer ───────────────────────────────────────────
   function renderQuiz(questions, post) {
     // Restore content visibility when returning to start screen
@@ -259,7 +299,9 @@
         <button id="btn-start-quiz" class="btn btn--primary" style="width:100%;padding:.75rem">${t('startQuiz')}</button>
       </div>`;
 
-    document.getElementById('btn-start-quiz').addEventListener('click', () => startQuiz(questions, post));
+    document.getElementById('btn-start-quiz').addEventListener('click', () => {
+      loadKatex(() => startQuiz(questions, post));
+    });
   }
 
   function startQuiz(questions, post) {
@@ -274,14 +316,16 @@
     const section = document.getElementById('quiz-section');
     let html = `<div class="quiz-card"><h2 class="quiz-title">${t('quiz')}</h2>`;
     questions.forEach((q, i) => {
-      const questionHtml = q.question.includes('<') ? sanitize(q.question) : esc(q.question);
+      const questionHtml = renderMathText(q.question);
+      const tipHtml = q.tip ? `<div class="quiz-tip">💡 ${renderMathText(q.tip)}</div>` : '';
       html += `<div class="quiz-question" data-index="${i}">
         <div class="quiz-question__text"><strong>Q${i + 1}.</strong> ${questionHtml}</div>
+        ${tipHtml}
         <div class="quiz-options">`;
       (q.options || []).forEach((opt, oi) => {
         html += `<label class="quiz-option">
           <input type="radio" name="q${i}" value="${oi}"/>
-          <span>${esc(opt)}</span>
+          <span>${renderMathText(opt)}</span>
         </label>`;
       });
       html += '</div></div>';
@@ -325,8 +369,14 @@
           if (!r.is_right) {
             const hint = document.createElement('p');
             hint.className = 'quiz-hint';
-            hint.textContent = `${t('correctAnswer')} ${questions[i].options[r.correct_index]}`;
+            hint.innerHTML = `${t('correctAnswer')} ${renderMathText(questions[i].options[r.correct_index])}`;
             el.appendChild(hint);
+          }
+          if (questions[i].explanation) {
+            const expl = document.createElement('p');
+            expl.className = 'quiz-explanation';
+            expl.innerHTML = `📝 ${renderMathText(questions[i].explanation)}`;
+            el.appendChild(expl);
           }
         });
 

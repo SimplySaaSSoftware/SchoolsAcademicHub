@@ -345,7 +345,13 @@
           <div class="quiz-builder">
             <div class="quiz-builder__header">
               <h3 class="quiz-builder__title">Quiz</h3>
-              <button id="btn-add-question" class="btn btn--secondary btn--sm">+ Question</button>
+              <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+                <button id="btn-add-question" class="btn btn--secondary btn--sm">+ Question</button>
+                <button id="btn-quiz-template" class="btn btn--secondary btn--sm" title="Download Excel template">⬇ Template</button>
+                <label class="btn btn--secondary btn--sm" style="cursor:pointer;margin:0" title="Import questions from Excel">
+                  ⬆ Import<input id="quiz-import-input" type="file" accept=".xlsx,.xls,.csv" style="display:none"/>
+                </label>
+              </div>
             </div>
             <label class="quiz-hide-toggle" style="display:flex;align-items:center;gap:.5rem;margin:.5rem 0 .75rem;font-size:.85rem;cursor:pointer">
               <input type="checkbox" id="f-quiz-hide-content" ${post?.quiz_hide_content ? 'checked' : ''}/>
@@ -361,6 +367,10 @@
     document.getElementById('btn-save-draft').addEventListener('click', () => savePost(post, 'draft'));
     document.getElementById('btn-publish').addEventListener('click', () => savePost(post, 'published'));
     document.getElementById('btn-add-question').addEventListener('click', addQuestion);
+    document.getElementById('btn-quiz-template').addEventListener('click', downloadQuizTemplate);
+    document.getElementById('quiz-import-input').addEventListener('change', (e) => {
+      if (e.target.files[0]) { importQuizFromExcel(e.target.files[0]); e.target.value = ''; }
+    });
     document.getElementById('file-input').addEventListener('change', (e) => {
       Array.from(e.target.files).forEach(uploadAttachment);
       e.target.value = '';
@@ -835,7 +845,11 @@
             <input class="form-control" type="text" value="${esc(opt)}" placeholder="Option ${oi + 1}"/>
           </div>`).join('')}
       </div>
-      <p style="font-size:.75rem;color:#888;margin-top:.25rem">Select the correct answer with the radio button.</p>`;
+      <p style="font-size:.75rem;color:#888;margin-top:.25rem">Select the correct answer with the radio button.</p>
+      <div class="quiz-q-extra">
+        <input class="form-control quiz-q-tip" type="text" value="${esc(q.tip ?? '')}" placeholder="Tip / hint (optional — shown to student before answering)"/>
+        <input class="form-control quiz-q-explanation" type="text" value="${esc(q.explanation ?? '')}" placeholder="Explanation (optional — shown after answering)"/>
+      </div>`;
 
     div.querySelectorAll('.quiz-opt-row').forEach((row, oi) => {
       row.querySelector('input[type="text"]').addEventListener('input', (e) => {
@@ -844,6 +858,8 @@
       });
       row.querySelector('input[type="radio"]').addEventListener('change', () => { quizQuestions[idx].correct_index = oi; });
     });
+    div.querySelector('.quiz-q-tip').addEventListener('input', (e) => { quizQuestions[idx].tip = e.target.value; });
+    div.querySelector('.quiz-q-explanation').addEventListener('input', (e) => { quizQuestions[idx].explanation = e.target.value; });
     div.querySelector('.quiz-q-del').addEventListener('click', () => {
       quizQuestions.splice(idx, 1);
       renderQuizBuilder();
@@ -1047,6 +1063,122 @@
       const dismiss = (ev) => { if (!bar.contains(ev.target) && ev.target !== img) { bar.remove(); document.removeEventListener('mousedown', dismiss); } };
       setTimeout(() => document.addEventListener('mousedown', dismiss), 0);
     });
+  }
+
+  // ── KaTeX math rendering ──────────────────────────────────────
+  function loadKatex(cb) {
+    if (window.katex) { cb(); return; }
+    if (!document.querySelector('link[href*="katex"]')) {
+      const lnk = document.createElement('link');
+      lnk.rel  = 'stylesheet';
+      lnk.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css';
+      document.head.appendChild(lnk);
+    }
+    const s = document.createElement('script');
+    s.src    = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js';
+    s.onload = cb;
+    document.head.appendChild(s);
+  }
+
+  function renderMathText(text) {
+    if (!text) return '';
+    if (/<[a-z][\s\S]*>/i.test(text)) return sanitize(text);
+    if (!window.katex || !text.includes('$')) return esc(text);
+    let html = '', i = 0;
+    while (i < text.length) {
+      if (text[i] === '$') {
+        const display = text[i + 1] === '$';
+        const delim   = display ? '$$' : '$';
+        const start   = i + delim.length;
+        const end     = text.indexOf(delim, start);
+        if (end === -1) { html += esc(text[i]); i++; continue; }
+        try { html += window.katex.renderToString(text.slice(start, end), { displayMode: display, throwOnError: false }); }
+        catch { html += esc(delim + text.slice(start, end) + delim); }
+        i = end + delim.length;
+      } else {
+        const next  = text.indexOf('$', i);
+        const chunk = next === -1 ? text.slice(i) : text.slice(i, next);
+        html += esc(chunk);
+        i = next === -1 ? text.length : next;
+      }
+    }
+    return html;
+  }
+
+  // ── Excel template download ───────────────────────────────────
+  function loadXlsx(cb) {
+    if (window.XLSX) { cb(); return; }
+    const s = document.createElement('script');
+    s.src    = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload = cb;
+    document.head.appendChild(s);
+  }
+
+  function downloadQuizTemplate() {
+    loadXlsx(() => {
+      const wb = window.XLSX.utils.book_new();
+      const headers = ['Question', 'Tip / Hint', 'Option A', 'Option B', 'Option C', 'Option D', 'Correct (1-4)', 'Explanation'];
+      const examples = [
+        ['What is $4 \\times 3$?', '', '10', '12', '14', '16', '2', 'Multiply: $4 \\times 3 = 12$'],
+        ['Simplify $\\frac{1}{2} + \\frac{1}{4}$', 'Find a common denominator first', '$\\frac{1}{4}$', '$\\frac{3}{4}$', '$\\frac{5}{8}$', '$1$', '2', '$\\frac{1}{2} = \\frac{2}{4}$, so $\\frac{2}{4} + \\frac{1}{4} = \\frac{3}{4}$'],
+        ['What is $\\sqrt{25}$?', '', '4', '5', '6', '7', '2', '$\\sqrt{25} = 5$ because $5 \\times 5 = 25$'],
+        ['Solve $2x + 3 = 11$', 'Subtract 3 from both sides first', '$x = 2$', '$x = 4$', '$x = 7$', '$x = 8$', '2', '$2x = 11 - 3 = 8$, so $x = 4$'],
+        ['What is $\\frac{3}{4} \\div \\frac{1}{2}$?', 'Multiply by the reciprocal', '$\\frac{3}{8}$', '$\\frac{3}{2}$', '$\\frac{1}{2}$', '$2$', '2', '$\\frac{3}{4} \\times \\frac{2}{1} = \\frac{6}{4} = \\frac{3}{2}$'],
+      ];
+      const ws = window.XLSX.utils.aoa_to_sheet([headers, ...examples]);
+      ws['!cols'] = [38, 24, 16, 16, 16, 16, 13, 44].map((w) => ({ wch: w }));
+      window.XLSX.utils.book_append_sheet(wb, ws, 'Questions');
+
+      const guide = [
+        ['GUIDE — Math Notation (LaTeX)'],[''],
+        ['Wrap math in $ ... $ for inline or $$ ... $$ for display (centered).'],[''],
+        ['Symbol / Expression', 'What to type', 'Renders as'],
+        ['Multiply', '$4 \\times 3$', '4 × 3'],
+        ['Divide', '$12 \\div 4$', '12 ÷ 4'],
+        ['Fraction', '$\\frac{1}{2}$', '½'],
+        ['Square root', '$\\sqrt{16}$', '√16'],
+        ['Power / exponent', '$x^{2}$', 'x²'],
+        ['Subscript', '$x_{1}$', 'x₁'],
+        ['Algebra', '$2x + 3 = 7$', '2x + 3 = 7'],
+        ['Pi', '$\\pi$', 'π'],
+        ['Plus-minus', '$\\pm 3$', '±3'],
+        ['Inequality', '$x \\geq 5$', 'x ≥ 5'],[''],
+        ['Correct column: enter 1 for Option A, 2 for B, 3 for C, 4 for D (or A/B/C/D).'],
+        ['Images: add images after import using the 🖼 button in the question editor.'],
+      ];
+      const ws2 = window.XLSX.utils.aoa_to_sheet(guide);
+      ws2['!cols'] = [{ wch: 24 }, { wch: 24 }, { wch: 20 }];
+      window.XLSX.utils.book_append_sheet(wb, ws2, 'Guide');
+      window.XLSX.writeFile(wb, 'quiz-template.xlsx');
+    });
+  }
+
+  async function importQuizFromExcel(file) {
+    await new Promise((res) => loadXlsx(res));
+    const data = await file.arrayBuffer();
+    const wb   = window.XLSX.read(data);
+    const ws   = wb.Sheets[wb.SheetNames[0]];
+    const rows = window.XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    const correctMap = { A: 0, B: 1, C: 2, D: 3, '1': 0, '2': 1, '3': 2, '4': 3 };
+    const imported = [];
+    for (let i = 1; i < rows.length; i++) {
+      const r        = rows[i];
+      const question = String(r[0] ?? '').trim();
+      if (!question) continue;
+      const opts     = [r[2], r[3], r[4], r[5]].map((o) => String(o ?? '').trim());
+      const correctRaw = String(r[6] ?? '').trim().toUpperCase();
+      imported.push({
+        question,
+        tip:          String(r[1]  ?? '').trim(),
+        options:      opts,
+        correct_index: correctMap[correctRaw] ?? 0,
+        explanation:  String(r[7] ?? '').trim(),
+      });
+    }
+    if (!imported.length) { showNotify('No questions found in file.', true); return; }
+    quizQuestions = [...quizQuestions, ...imported];
+    renderQuizBuilder();
+    showNotify(`Imported ${imported.length} question${imported.length !== 1 ? 's' : ''}.`);
   }
 
   // ── Quill loader ─────────────────────────────────────────────
