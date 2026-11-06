@@ -1172,24 +1172,51 @@
 
   async function importQuizFromExcel(file) {
     await new Promise((res) => loadXlsx(res));
-    const data = await file.arrayBuffer();
-    const wb   = window.XLSX.read(data);
+    let wb;
+    if (file.name.toLowerCase().endsWith('.csv')) {
+      const text = await file.text();
+      wb = window.XLSX.read(text, { type: 'string' });
+    } else {
+      const data = await file.arrayBuffer();
+      wb = window.XLSX.read(data);
+    }
     const ws   = wb.Sheets[wb.SheetNames[0]];
     const rows = window.XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    if (!rows.length) { showNotify('No questions found in file.', true); return; }
+
+    // Build a header→index map (case-insensitive, ignore punctuation) so any column order works
+    const normalise = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+    const header = rows[0].map(normalise);
+    const col = (names) => { for (const n of names) { const i = header.indexOf(normalise(n)); if (i !== -1) return i; } return -1; };
+    const iQ   = col(['question']);
+    const iA   = col(['optiona', 'option a', 'a']);
+    const iB   = col(['optionb', 'option b', 'b']);
+    const iC   = col(['optionc', 'option c', 'c']);
+    const iD   = col(['optiond', 'option d', 'd']);
+    const iCor = col(['correct', 'correctabcd', 'answer']);
+    const iTip = col(['tip', 'hint']);
+    const iExp = col(['explanation', 'explain']);
+
+    // Fall back to fixed positions if no recognisable header (legacy xlsx with no header row)
+    const useFallback = iQ === -1;
+    const get = (r, byName, fallback) => String((useFallback ? r[fallback] : (byName === -1 ? '' : r[byName])) ?? '').trim();
+
     const correctMap = { A: 0, B: 1, C: 2, D: 3, '1': 0, '2': 1, '3': 2, '4': 3 };
     const imported = [];
-    for (let i = 1; i < rows.length; i++) {
+    for (let i = useFallback ? 0 : 1; i < rows.length; i++) {
       const r        = rows[i];
-      const question = String(r[0] ?? '').trim();
+      const question = get(r, iQ, 0);
       if (!question) continue;
-      const opts     = [r[2], r[3], r[4], r[5]].map((o) => String(o ?? '').trim());
-      const correctRaw = String(r[6] ?? '').trim().toUpperCase();
+      const opts = [
+        get(r, iA, 2), get(r, iB, 3), get(r, iC, 4), get(r, iD, 5),
+      ];
+      const correctRaw = get(r, iCor, 6).toUpperCase();
       imported.push({
         question,
-        tip:          String(r[1]  ?? '').trim(),
-        options:      opts,
+        tip:           get(r, iTip, 1),
+        options:       opts,
         correct_index: correctMap[correctRaw] ?? 0,
-        explanation:  String(r[7] ?? '').trim(),
+        explanation:   get(r, iExp, 7),
       });
     }
     if (!imported.length) { showNotify('No questions found in file.', true); return; }
