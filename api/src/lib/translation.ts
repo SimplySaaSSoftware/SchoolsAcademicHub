@@ -8,7 +8,7 @@ export const isLang = (v: unknown): v is Lang => v === 'en' || v === 'af';
 export const originalLang = (p: { lang?: Lang }): Lang => p.lang ?? 'en';
 export const otherLang = (l: Lang): Lang => (l === 'en' ? 'af' : 'en');
 
-export function parseQuiz(json: string | undefined): Array<{ question: string; options: string[]; correct_index: number }> {
+export function parseQuiz(json: string | undefined): Array<{ question: string; options: string[]; correct_index: number; tip?: string; explanation?: string }> {
   try { const q = JSON.parse(json || '[]'); return Array.isArray(q) ? q : []; } catch { return []; }
 }
 
@@ -121,7 +121,7 @@ export function localizePost(post: PostDoc, lang: Lang | null): Record<string, u
     out.title = t.title;
     out.content_html = t.content_html;
   }
-  // Students get questions and options only: grading happens on the server
-  out.quiz_json = JSON.stringify(quizForLang(post, use).map(({ question, options }) => ({ question, options })));
+  // Students get questions and options (+ tip/explanation); correct_index never sent
+  out.quiz_json = JSON.stringify(quizForLang(post, use).map(({ question, options, tip, explanation }) => ({ question, options, ...(tip ? { tip } : {}), ...(explanation ? { explanation } : {}) })));
   return out;
 }

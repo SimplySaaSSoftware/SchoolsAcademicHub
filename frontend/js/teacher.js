@@ -837,7 +837,8 @@
         <span class="quiz-q-card__num">Q${idx + 1}</span>
         <button class="btn btn--danger btn--sm quiz-q-del" data-idx="${idx}">&times;</button>
       </div>
-      <div class="quiz-q-editor" id="quiz-q-editor-${idx}" style="min-height:70px;background:#fff;margin-bottom:.5rem"></div>
+      <div class="quiz-q-editor" id="quiz-q-editor-${idx}" style="min-height:70px;background:#fff;margin-bottom:.25rem"></div>
+      <div class="quiz-q-math-preview" id="quiz-q-math-preview-${idx}" style="display:none;font-size:.85rem;color:#444;background:#f7f7fb;border:1px solid #e0e0f0;border-radius:4px;padding:.35rem .6rem;margin-bottom:.5rem"></div>
       <div class="quiz-q-options">
         ${(q.options || ['', '', '', '']).map((opt, oi) => `
           <div class="quiz-opt-row">
@@ -896,7 +897,17 @@
         },
       });
       if (q.question) qed.clipboard.dangerouslyPasteHTML(q.question);
-      qed.on('text-change', () => { quizQuestions[idx].question = qed.root.innerHTML; });
+      const mathPreview = div.querySelector(`#quiz-q-math-preview-${idx}`);
+      function updateMathPreview() {
+        const text = qed.getText().trim();
+        if (!text.includes('$')) { mathPreview.style.display = 'none'; return; }
+        loadKatex(() => {
+          mathPreview.innerHTML = renderMathText(text);
+          mathPreview.style.display = 'block';
+        });
+      }
+      qed.on('text-change', () => { quizQuestions[idx].question = qed.root.innerHTML; updateMathPreview(); });
+      updateMathPreview();
       quizEditors[idx] = qed;
 
       attachImageResizePicker(qed, () => { quizQuestions[idx].question = qed.root.innerHTML; });
