@@ -914,34 +914,40 @@
     const questions = (() => { try { return JSON.parse(post?.quiz_json || '[]'); } catch { return []; } })();
     const links     = (() => { try { return JSON.parse(post?.attachments_json || '[]'); } catch { return []; } })();
 
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    const modal = document.createElement('div');
-    modal.className = 'modal modal--wide';
-    modal.innerHTML = `
-        <div class="modal__header">
-          <h2>${esc(post?.title ?? 'Preview')}</h2>
-          <span class="badge badge--draft" style="font-size:.7rem">Student view</span>
-          <button class="btn btn--ghost btn--sm btn-fullscreen" title="Fullscreen" style="margin-left:auto">⛶</button>
-          <button id="btn-close-preview" class="btn btn--ghost btn--sm">&times; Close</button>
-        </div>
-        <div class="modal__body">
-          <p class="post-view__meta">Grade ${esc(String(post?.grade ?? ''))} &bull; ${esc(post?.subject ?? '')} &bull; Term ${esc(post?.term ?? '')}</p>
-          <div class="post-content">${sanitize(post?.content_html ?? '')}</div>
-          ${links.length ? `<div class="attachments"><h4>Attachments</h4>${links.map((a) => renderAttachmentItem(a)).join('')}</div>` : ''}
-          ${questions.length ? `<div class="quiz-card"><h3 class="quiz-title">Quiz</h3>${questions.map((q, i) => `
-            <div class="quiz-question"><div class="quiz-question__text"><strong>Q${i+1}.</strong> ${q.question?.includes('<') ? sanitize(q.question) : esc(q.question ?? '')}</div>
-            <div class="quiz-options">${(q.options||[]).map((o, oi) => `<label class="quiz-option"><input type="radio" name="pq${i}" value="${oi}"/><span>${esc(o)}</span></label>`).join('')}</div>
-            </div>`).join('')}
-            <button class="btn btn--primary" style="margin-top:1rem" disabled>Submit Quiz</button>
-          </div>` : ''}
-        </div>`;
+    const buildModal = () => {
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      const modal = document.createElement('div');
+      modal.className = 'modal modal--wide';
+      modal.innerHTML = `
+          <div class="modal__header">
+            <h2>${esc(post?.title ?? 'Preview')}</h2>
+            <span class="badge badge--draft" style="font-size:.7rem">Student view</span>
+            <button class="btn btn--ghost btn--sm btn-fullscreen" title="Fullscreen" style="margin-left:auto">⛶</button>
+            <button id="btn-close-preview" class="btn btn--ghost btn--sm">&times; Close</button>
+          </div>
+          <div class="modal__body">
+            <p class="post-view__meta">Grade ${esc(String(post?.grade ?? ''))} &bull; ${esc(post?.subject ?? '')} &bull; Term ${esc(post?.term ?? '')}</p>
+            <div class="post-content">${sanitize(post?.content_html ?? '')}</div>
+            ${links.length ? `<div class="attachments"><h4>Attachments</h4>${links.map((a) => renderAttachmentItem(a)).join('')}</div>` : ''}
+            ${questions.length ? `<div class="quiz-card"><h3 class="quiz-title">Quiz</h3>${questions.map((q, i) => `
+              <div class="quiz-question">
+                <div class="quiz-question__text"><strong>Q${i+1}.</strong> ${renderMathText(q.question ?? '')}</div>
+                ${q.tip ? `<div class="quiz-tip">💡 ${renderMathText(q.tip)}</div>` : ''}
+                <div class="quiz-options">${(q.options||[]).map((o, oi) => `<label class="quiz-option"><input type="radio" name="pq${i}" value="${oi}"/><span>${renderMathText(o)}</span></label>`).join('')}</div>
+              </div>`).join('')}
+              <button class="btn btn--primary" style="margin-top:1rem" disabled>Submit Quiz</button>
+            </div>` : ''}
+          </div>`;
 
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-    addFullscreenToggle(overlay, modal);
-    overlay.querySelector('#btn-close-preview').addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+      addFullscreenToggle(overlay, modal);
+      overlay.querySelector('#btn-close-preview').addEventListener('click', () => overlay.remove());
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    };
+
+    if (questions.length) loadKatex(buildModal); else buildModal();
   }
 
   // ── Stats panel ─────────────────────────────────────────────
