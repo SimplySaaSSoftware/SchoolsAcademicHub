@@ -670,17 +670,18 @@ html[lang="af"] .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="3"]::b
 
 /* ── Communication Channels ──────────────────────────────────── */
 .channel-layout { display: flex; gap: 1rem; align-items: flex-start; min-height: 60vh; }
-.channel-tree { flex: 0 0 220px; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: .5rem 0; }
+.channel-tree { flex: 0 0 240px; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.channel-tree__head { display: flex; align-items: center; justify-content: space-between; padding: .6rem .75rem; border-bottom: 1px solid var(--border); gap: .5rem; }
+.channel-tree__title { font-weight: 700; font-size: .9375rem; margin: 0; }
 .channel-posts-pane { flex: 1; min-width: 0; }
 
-.channel-item { display: flex; align-items: center; justify-content: space-between; padding: .6rem .75rem; cursor: pointer; border-radius: 0; border-left: 3px solid transparent; min-height: 44px; }
+.channel-item { display: flex; align-items: center; justify-content: space-between; padding: .5rem .75rem; cursor: pointer; border-radius: 0; border-left: 3px solid transparent; min-height: 44px; gap: .25rem; }
 .channel-item:hover { background: var(--bg); }
-.channel-item--active { border-left-color: var(--primary); background: var(--bg); }
-.channel-item--sub { padding-left: 1.5rem; }
-.channel-item__name { font-size: .9375rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-.channel-item__actions { display: flex; gap: .2rem; opacity: 0; transition: opacity .15s; }
-.channel-item:hover .channel-item__actions, .channel-item--active .channel-item__actions { opacity: 1; }
-.btn--xs { font-size: .75rem; padding: .2rem .4rem; min-height: 28px; }
+.channel-item--active { border-left-color: var(--primary); background: var(--bg); font-weight: 600; }
+.channel-item--sub { padding-left: 1.75rem; }
+.channel-item__name { font-size: .9375rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.channel-item__actions { display: flex; gap: .2rem; flex-shrink: 0; }
+.btn--xs { font-size: .75rem; padding: .2rem .45rem; min-height: 30px; }
 
 .channel-posts-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; gap: 1rem; }
 .channel-posts-title { font-size: 1.1rem; font-weight: 600; margin: 0; }
@@ -714,7 +715,6 @@ html[lang="af"] .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="3"]::b
 @media (max-width: 600px) {
   .channel-layout { flex-direction: column; }
   .channel-tree { flex: none; width: 100%; }
-  .channel-item__actions { opacity: 1; }
 }
 
 /* ── School Calendar ─────────────────────────────────────────── */
