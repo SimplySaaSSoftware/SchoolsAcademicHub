@@ -401,10 +401,66 @@
   }
   const sanitize = safeHtml;   // js/safe-html.js
 
+  // ── Main tab navigation ──────────────────────────────────────
+  let mainTab = 'lessons';   // 'lessons' | 'channels' | 'calendar'
+  const channelsContainer = document.createElement('div');
+  channelsContainer.id = 'channels-pane';
+  channelsContainer.style.flex = '1';
+  const calendarContainer = document.createElement('div');
+  calendarContainer.id = 'calendar-pane';
+  calendarContainer.style.flex = '1';
+
+  function renderTabBar() {
+    let bar = document.getElementById('student-tab-bar');
+    if (!bar) {
+      bar = document.createElement('nav');
+      bar.id = 'student-tab-bar';
+      bar.className = 'student-tabs';
+      bar.setAttribute('role', 'tablist');
+      main.parentNode.insertBefore(bar, main);
+    }
+    bar.innerHTML = `
+      <button class="student-tab ${mainTab === 'lessons'  ? 'student-tab--on' : ''}" data-tab="lessons"  role="tab" aria-selected="${mainTab === 'lessons'}"  data-i18n="tabLessons">${t('tabLessons')}</button>
+      <button class="student-tab ${mainTab === 'channels' ? 'student-tab--on' : ''}" data-tab="channels" role="tab" aria-selected="${mainTab === 'channels'}" data-i18n="tabChannels">${t('tabChannels')}</button>
+      <button class="student-tab ${mainTab === 'calendar' ? 'student-tab--on' : ''}" data-tab="calendar" role="tab" aria-selected="${mainTab === 'calendar'}" data-i18n="tabCalendar">${t('tabCalendar')}</button>`;
+    bar.querySelectorAll('[data-tab]').forEach((btn) => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+  }
+
+  let _channelsMounted = false;
+  let _calendarMounted = false;
+
+  function switchTab(tab) {
+    mainTab = tab;
+    renderTabBar();
+    main.style.display        = tab === 'lessons'  ? '' : 'none';
+    channelsContainer.style.display = tab === 'channels' ? '' : 'none';
+    calendarContainer.style.display = tab === 'calendar' ? '' : 'none';
+    if (tab === 'channels' && !_channelsMounted) {
+      _channelsMounted = true;
+      ChannelsStudent.mount(channelsContainer, session);
+    }
+    if (tab === 'calendar' && !_calendarMounted) {
+      _calendarMounted = true;
+      CalendarStudent.mount(calendarContainer, session);
+    }
+  }
+
+  // Insert panes after main
+  main.parentNode.insertBefore(channelsContainer, main.nextSibling);
+  channelsContainer.after(calendarContainer);
+  channelsContainer.style.display = 'none';
+  calendarContainer.style.display = 'none';
+
+  renderTabBar();
+
   // English <-> Afrikaans: redraw whatever is on screen (a quiz in progress restarts)
   document.addEventListener('uilangchange', () => {
     renderHeaderGrade();
-    if (view.name === 'post') openPost(view.id, false); else renderPostList();
+    renderTabBar();
+    applyI18n();
+    if (mainTab === 'channels') { _channelsMounted = false; ChannelsStudent.mount(channelsContainer, session); _channelsMounted = true; }
+    if (mainTab === 'calendar') { _calendarMounted = false; CalendarStudent.mount(calendarContainer, session); _calendarMounted = true; }
+    if (mainTab === 'lessons') { if (view.name === 'post') openPost(view.id, false); else renderPostList(); }
   });
 
   await loadPosts();

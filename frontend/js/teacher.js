@@ -86,7 +86,29 @@
     if (view.name === 'subject') renderSubject(view.grade, view.subject);
     else if (view.name === 'all') renderPostList(allPosts, { title: 'All Posts', back: true });
     else if (view.name === 'students') renderStudentsView();
+    else if (view.name === 'channels') renderChannelsView();
+    else if (view.name === 'calendar') renderCalendarView();
     else renderDashboard();
+  }
+
+  function renderChannelsView() {
+    main.innerHTML = `
+      <div class="page-toolbar">
+        <button id="btn-back-dash" class="btn btn--ghost btn--sm">&larr; Dashboard</button>
+      </div>
+      <div id="channels-panel"></div>`;
+    document.getElementById('btn-back-dash').addEventListener('click', () => { view = { name: 'dashboard' }; renderView(); });
+    ChannelsTeacher.mount(document.getElementById('channels-panel'), session, school, showNotify);
+  }
+
+  function renderCalendarView() {
+    main.innerHTML = `
+      <div class="page-toolbar">
+        <button id="btn-back-dash" class="btn btn--ghost btn--sm">&larr; Dashboard</button>
+      </div>
+      <div id="calendar-panel"></div>`;
+    document.getElementById('btn-back-dash').addEventListener('click', () => { view = { name: 'dashboard' }; renderView(); });
+    CalendarTeacher.mount(document.getElementById('calendar-panel'), session, showNotify);
   }
 
   const pctText = (v) => (v == null ? '–' : `${v}%`);
@@ -121,6 +143,8 @@
         <h1 class="page-title">${isTeacher && session.grade ? `Grade ${esc(String(session.grade))} Dashboard` : 'Dashboard'}</h1>
         <div class="toolbar-actions">
           <button id="btn-students" class="btn btn--secondary">Students</button>
+          <button id="btn-channels" class="btn btn--secondary">Channels</button>
+          <button id="btn-calendar" class="btn btn--secondary">Calendar</button>
           <button id="btn-all-posts" class="btn btn--secondary">All Posts</button>
           <button id="btn-new-post" class="btn btn--primary">+ New Post</button>
         </div>
@@ -173,6 +197,8 @@
     document.getElementById('btn-new-post').addEventListener('click', () => showEditor(null));
     document.getElementById('btn-all-posts').addEventListener('click', () => { view = { name: 'all' }; renderView(); });
     document.getElementById('btn-students').addEventListener('click', () => { view = { name: 'students' }; renderView(); });
+    document.getElementById('btn-channels').addEventListener('click', () => { view = { name: 'channels' }; renderView(); });
+    document.getElementById('btn-calendar').addEventListener('click', () => { view = { name: 'calendar' }; renderView(); });
     document.getElementById('dash-grade')?.addEventListener('change', (e) => { adminGrade = e.target.value; renderDashboard(); });
     main.querySelectorAll('.dash-card').forEach((el) => el.addEventListener('click', () => {
       view = { name: 'subject', grade: Number(el.dataset.grade), subject: el.dataset.subject };
