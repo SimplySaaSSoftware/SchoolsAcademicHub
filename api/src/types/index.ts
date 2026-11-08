@@ -248,3 +248,59 @@ export interface DashboardSummary {
   active_quizzes: number;
   avg_quiz_score: number | null;
 }
+
+// ---- Channels ----
+
+export interface ChannelDoc extends BaseDoc {
+  type: 'channel';
+  name: string;
+  name_af?: string;
+  parent_id: string | null;   // null = top-level channel
+  order: number;
+  created_by_id: string;
+  created_by_name: string;
+}
+
+/** Translation of a channel post (title + content only, no quiz). */
+export interface ChannelPostTranslation {
+  title: string;
+  content_html: string;
+  status: 'draft' | 'verified';
+  stale: boolean;
+  source_hash: string;
+  updated_at: string;
+  verified_by_id?: string;
+  verified_by_name?: string;
+  verified_at?: string;
+}
+
+export interface ChannelPostDoc extends BaseDoc {
+  type: 'channel_post';
+  channel_id: string;
+  title: string;
+  content_html: string;
+  attachments_json: string;   // JSON array of Attachment
+  event_id?: string | null;   // optional linked CalendarEventDoc
+  lang: Lang;
+  translations?: Partial<Record<Lang, ChannelPostTranslation>>;
+  status: 'draft' | 'published';
+  author_id: string;
+  author_name: string;
+  updated_at: string;
+}
+
+// ---- Calendar events ----
+
+export interface CalendarEventDoc extends BaseDoc {
+  type: 'calendar_event';
+  title: string;
+  title_af?: string;
+  description: string;
+  description_af?: string;
+  location?: string;
+  start_date: string;    // ISO date string
+  end_date?: string;     // ISO date string; absent = same day as start_date
+  created_by_id: string;
+  created_by_name: string;
+  updated_at: string;
+}
