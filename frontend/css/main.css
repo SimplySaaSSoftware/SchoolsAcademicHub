@@ -681,6 +681,8 @@ html[lang="af"] .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="3"]::b
 .channel-item--sub { padding-left: 1.75rem; }
 .channel-item__name { font-size: .9375rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .channel-item__actions { display: flex; gap: .2rem; flex-shrink: 0; }
+.channel-tree .btn--ghost { color: var(--text-light); border-color: var(--border); background: transparent; }
+.channel-tree .btn--ghost:hover:not(:disabled) { color: var(--text); background: var(--bg); border-color: var(--border); }
 .btn--xs { font-size: .75rem; padding: .2rem .45rem; min-height: 30px; }
 
 .channel-posts-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; gap: 1rem; }
