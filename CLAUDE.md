@@ -51,6 +51,10 @@ https://polite-island-0106b4103.7.azurestaticapps.net/
 | `reset_token` | Password reset tokens (expires 1h) |
 | `subject` | Subject name list per school |
 | `term` | Term name list per school |
+| `channel` | Communication channel or sub-channel (`parent_id` for sub-channels) |
+| `channel_post` | Post inside a channel (title, content_html, optional `event_id` link) |
+| `calendar_event` | School calendar event (title, start_date, end_date, description, grades[]) |
+| `setting` | System-level settings (e.g. `google-drive-token`, `school_id = 'system'`) |
 
 ## Languages (English / Afrikaans)
 A post has an original `lang` (`en`/`af`, absent = `en`). `translations.{lang}` holds text only (title, content_html, quiz question/option text); grading data (`correct_index`) always comes from the original quiz. A translation is `draft` until a teacher verifies it, and becomes `stale` (hidden from students) when the original text changes. Students only ever see verified, non-stale translations. AI drafts via `POST /posts/{id}/translate` (`api/src/lib/ai-translate.ts`).
@@ -69,6 +73,21 @@ Each subject has an English and an Afrikaans display name (`SubjectDoc.names`), 
 
 ## Student dashboard
 Individual students get a progress summary and **To do / Done / All** tabs (default To do), grouped by subject, with the best quiz score and attempt count on each card. `GET /posts` adds `progress` per post for individual students only (opened, attempts, best, last, passed); shared grade PINs get none and see everything. A quiz counts as done when passed (80%+, same pass mark as `activity-quiz-attempt`); a post without a quiz is done once opened.
+
+## Communication Channels
+Teachers create a tree of channels (top-level and sub-channels) in the teacher portal. Each channel can hold posts (title + rich HTML content, optional linked calendar event, EN/AF translation). Students see channels as a tab in their portal.
+
+- **API**: `GET/POST/PUT/DELETE /channels`, `GET/POST/PUT/DELETE /channel-posts`, `PUT /channel-posts/{id}/{translate|verify-translation}`
+- **Frontend**: `frontend/js/channels.js` — `ChannelsTeacher` and `ChannelsStudent` classes; mounted from `teacher.js` / `student.js`
+- **Super admin**: superadmin.js "Channels" button on each school row opens a channel management modal — delete channels, promote sub-channels to top level. Uses `x-school-id` request header (picked up by `effectiveSchoolId`).
+- **Translation**: same draft/stale/verified pattern as posts — `sourceHash` triggers stale on text change; `localizePost` serves the right language to students
+
+## School Calendar
+Admins/teachers create calendar events (school-wide or grade-specific). Students see a month grid + upcoming events in their portal.
+
+- **API**: `GET/POST/PUT/DELETE /calendar-events` (optional `?from=&to=` date filter, `?grades=` for grade filter)
+- **Frontend**: `frontend/js/calendar.js` — `CalendarTeacher` and `CalendarStudent`; mounted lazily from tab switch
+- Channel posts can link to a calendar event via `event_id`; the student post view shows the linked event card
 
 ## Google Drive connection
 Super admin page has a **Google Drive** card: status (checked live), **Connect / Reconnect Google Drive**, Disconnect. Connect runs Google's OAuth flow (`functions/google-drive.ts`): `POST /google/connect-url` → Google → `GET /google/callback` (proved by a signed `state`) → the refresh token is stored AES-encrypted in an `items` doc `google-drive-token` (type `setting`, school_id `system`; `lib/secrets.ts`). `lib/drive.ts` reads that first, then falls back to `GOOGLE_REFRESH_TOKEN`. One-time Google setup: add `https://<public-site>/api/google/callback` under the client's Authorised redirect URIs (the card shows the exact value), and keep the OAuth app **In production** (Testing mode tokens expire after 7 days).
