@@ -183,6 +183,7 @@
         <td>${s.active ? '<span class="badge badge--published">Active</span>' : '<span class="badge badge--draft">Inactive</span>'}</td>
         <td class="table-actions">
           <button class="btn btn--secondary btn--sm" data-action="edit" data-id="${esc(s.id)}">Edit</button>
+          <button class="btn btn--secondary btn--sm" data-action="channels" data-id="${esc(s.id)}" data-name="${esc(s.name)}">Channels</button>
           <a class="btn btn--primary btn--sm" href="/admin/${esc(s.slug)}">Manage</a>
           <a class="btn btn--ghost btn--sm" href="/${esc(s.slug)}" target="_blank" rel="noopener" style="color:var(--primary);border-color:var(--primary)">Login &nearr;</a>
         </td>
@@ -196,6 +197,113 @@
     main.querySelectorAll('[data-action="edit"]').forEach((b) => {
       b.addEventListener('click', () => showSchoolModal(schools.find((s) => s.id === b.dataset.id)));
     });
+    main.querySelectorAll('[data-action="channels"]').forEach((b) => {
+      b.addEventListener('click', () => showChannelsModal(b.dataset.id, b.dataset.name));
+    });
+  }
+
+  // ── Channels management (super admin) ─────────────────────────
+  async function showChannelsModal(schoolId, schoolName) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal modal--wide">
+        <div class="modal__header">
+          <h2>Channels — ${esc(schoolName)}</h2>
+          <button class="btn btn--ghost btn--sm modal-close" style="margin-left:auto;color:#333">&times;</button>
+        </div>
+        <div class="modal__body" id="channels-modal-body">
+          <p style="color:#888">Loading…</p>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+    async function sapiGet(path) {
+      const res = await fetch(`${API_BASE}${path}`, { headers: { 'Authorization': `Bearer ${session.token}` } });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || res.statusText); }
+      return res.json();
+    }
+    async function sapiReq(method, path, body) {
+      const res = await fetch(`${API_BASE}${path}`, {
+        method,
+        headers: { 'Authorization': `Bearer ${session.token}`, 'Content-Type': 'application/json', 'x-school-id': schoolId },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      if (!res.ok && res.status !== 204) { const d = await res.json().catch(() => ({})); throw new Error(d.error || res.statusText); }
+      return res.status === 204 ? null : res.json();
+    }
+
+    async function renderChannels() {
+      const body = overlay.querySelector('#channels-modal-body');
+      body.innerHTML = '<p style="color:#888">Loading…</p>';
+      let channels;
+      try { channels = await sapiGet(`/channels?school_id=${encodeURIComponent(schoolId)}`); }
+      catch (e) { body.innerHTML = `<p style="color:red">${esc(e.message)}</p>`; return; }
+
+      if (!channels.length) {
+        body.innerHTML = '<p style="color:#888;text-align:center;padding:1.5rem">No channels for this school.</p>';
+        return;
+      }
+
+      const roots = channels.filter((c) => !c.parent_id);
+      const childMap = {};
+      channels.filter((c) => c.parent_id).forEach((c) => {
+        (childMap[c.parent_id] = childMap[c.parent_id] || []).push(c);
+      });
+
+      function renderRow(c, indent) {
+        const style = indent ? 'padding-left:2rem;' : '';
+        const moveBtn = c.parent_id ? `<button class="btn btn--secondary btn--xs" data-ch-action="promote" data-ch-id="${esc(c.id)}" title="Move to top level">↑ Top</button>` : '';
+        return `<tr>
+          <td style="${style}${c.parent_id ? 'color:#555;' : 'font-weight:600'}">${esc(c.name)}${c.name_af ? ` <span style="color:#888;font-size:.8rem">(${esc(c.name_af)})</span>` : ''}</td>
+          <td style="color:#888;font-size:.8rem">${c.parent_id ? 'Sub-channel' : 'Top-level'}</td>
+          <td class="table-actions">
+            ${moveBtn}
+            <button class="btn btn--ghost btn--xs" data-ch-action="delete" data-ch-id="${esc(c.id)}" data-ch-name="${esc(c.name)}" style="color:var(--danger);border-color:var(--danger)">Delete</button>
+          </td>
+        </tr>`;
+      }
+
+      let rows = '';
+      roots.forEach((c) => {
+        rows += renderRow(c, false);
+        (childMap[c.id] || []).forEach((sub) => { rows += renderRow(sub, true); });
+      });
+
+      body.innerHTML = `
+        <table class="table">
+          <thead><tr><th>Name</th><th>Level</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+
+      body.querySelectorAll('[data-ch-action="delete"]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const name = btn.dataset.chName;
+          if (!confirm(`Delete channel "${name}" and all its sub-channels and posts? This cannot be undone.`)) return;
+          btn.disabled = true; btn.textContent = '…';
+          try {
+            await sapiReq('DELETE', `/channels/${btn.dataset.chId}`);
+            showNotify(`Channel "${name}" deleted.`);
+            renderChannels();
+          } catch (e) { showNotify(e.message, true); btn.disabled = false; btn.textContent = 'Delete'; }
+        });
+      });
+
+      body.querySelectorAll('[data-ch-action="promote"]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          btn.disabled = true; btn.textContent = '…';
+          try {
+            await sapiReq('PUT', `/channels/${btn.dataset.chId}`, { parent_id: null });
+            showNotify('Moved to top level.');
+            renderChannels();
+          } catch (e) { showNotify(e.message, true); btn.disabled = false; btn.textContent = '↑ Top'; }
+        });
+      });
+    }
+
+    renderChannels();
   }
 
   // ── School modal ──────────────────────────────────────────────
