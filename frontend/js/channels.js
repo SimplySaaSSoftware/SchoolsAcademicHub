@@ -29,12 +29,12 @@ const ChannelsTeacher = (() => {
     const subs = (parentId) => _channels.filter((c) => c.parent_id === parentId);
 
     let html = `
-      <div class="page-toolbar">
-        <h1 class="page-title">Channels</h1>
-        <button id="ch-btn-new" class="btn btn--primary">+ New Channel</button>
-      </div>
       <div class="channel-layout">
-        <div class="channel-tree" id="channel-tree">`;
+        <div class="channel-tree" id="channel-tree">
+          <div class="channel-tree__head">
+            <span class="channel-tree__title">Channels</span>
+            <button id="ch-btn-new" class="btn btn--primary btn--sm">+ New</button>
+          </div>`;
 
     if (!topLevel.length) {
       html += '<p class="dash-empty">No channels yet. Create one to get started.</p>';
@@ -45,7 +45,7 @@ const ChannelsTeacher = (() => {
           <div class="channel-item${isActive ? ' channel-item--active' : ''}" data-cid="${ChEsc(ch.id)}">
             <span class="channel-item__name">${ChEsc(ch.name)}</span>
             <span class="channel-item__actions">
-              <button class="btn btn--ghost btn--xs" data-action="add-sub" data-cid="${ChEsc(ch.id)}" title="Add sub-channel">+</button>
+              <button class="btn btn--ghost btn--xs" data-action="add-sub" data-cid="${ChEsc(ch.id)}" title="Add sub-channel">+ Sub</button>
               <button class="btn btn--ghost btn--xs" data-action="rename"  data-cid="${ChEsc(ch.id)}" title="Rename">✎</button>
               <button class="btn btn--ghost btn--xs" data-action="del-ch"  data-cid="${ChEsc(ch.id)}" title="Delete">✕</button>
             </span>
