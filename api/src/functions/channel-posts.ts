@@ -90,6 +90,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
         content_html:     body.content_html ?? '',
         attachments_json: body.attachments_json ?? '[]',
         event_id:         body.event_id ?? null,
+        expires_at:       body.expires_at ?? null,
         lang:             isLang(body.lang) ? body.lang : 'en',
         status:           body.status ?? 'draft',
         author_id:        jwt.user_id,
@@ -161,6 +162,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
         content_html:     body.content_html ?? post.content_html,
         attachments_json: body.attachments_json ?? post.attachments_json,
         event_id:         body.event_id !== undefined ? body.event_id : post.event_id,
+        expires_at:       body.expires_at !== undefined ? body.expires_at : post.expires_at,
         status:           body.status ?? post.status,
         updated_at:       now,
       };

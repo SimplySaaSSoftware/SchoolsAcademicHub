@@ -281,6 +281,7 @@ export interface ChannelPostDoc extends BaseDoc {
   content_html: string;
   attachments_json: string;   // JSON array of Attachment
   event_id?: string | null;   // optional linked CalendarEventDoc
+  expires_at?: string | null; // ISO date; past = post moves to archived section
   lang: Lang;
   translations?: Partial<Record<Lang, ChannelPostTranslation>>;
   status: 'draft' | 'published';
