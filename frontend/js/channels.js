@@ -1,10 +1,10 @@
 /* channels.js — Communication Channels UI for teacher and student portals */
 
-// ── Shared helpers ────────────────────────────────────────────────────────────
+// ── Shared helpers ─────────────────────────────────────────────────────────────────────────────────
 const ChEsc = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const ChFmt = (d) => { const dt = new Date(d); return isNaN(dt) ? '' : dt.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }); };
 
-// ── Teacher Channels UI ───────────────────────────────────────────────────────
+// ── Teacher Channels UI ─────────────────────────────────────────────────────────────────────────────────
 const ChannelsTeacher = (() => {
   let _main, _session, _school, _notify, _quillInst;
   let _channels = [], _events = [];
@@ -56,10 +56,34 @@ const ChannelsTeacher = (() => {
             <div class="channel-item channel-item--sub${isSubActive ? ' channel-item--active' : ''}" data-cid="${ChEsc(sub.id)}">
               <span class="channel-item__name">${ChEsc(sub.name)}</span>
               <span class="channel-item__actions">
+                <button class="btn btn--ghost btn--xs" data-action="add-sub" data-cid="${ChEsc(sub.id)}" title="Add sub-channel">+ Sub</button>
                 <button class="btn btn--ghost btn--xs" data-action="rename" data-cid="${ChEsc(sub.id)}" title="Rename">✎</button>
                 <button class="btn btn--ghost btn--xs" data-action="del-ch" data-cid="${ChEsc(sub.id)}" title="Delete">✕</button>
               </span>
             </div>`;
+          subs(sub.id).forEach((sub2) => {
+            const isSub2Active = _activeChannelId === sub2.id;
+            html += `
+              <div class="channel-item channel-item--sub channel-item--sub2${isSub2Active ? ' channel-item--active' : ''}" data-cid="${ChEsc(sub2.id)}">
+                <span class="channel-item__name">${ChEsc(sub2.name)}</span>
+                <span class="channel-item__actions">
+                  <button class="btn btn--ghost btn--xs" data-action="add-sub" data-cid="${ChEsc(sub2.id)}" title="Add sub-channel">+ Sub</button>
+                  <button class="btn btn--ghost btn--xs" data-action="rename" data-cid="${ChEsc(sub2.id)}" title="Rename">✎</button>
+                  <button class="btn btn--ghost btn--xs" data-action="del-ch" data-cid="${ChEsc(sub2.id)}" title="Delete">✕</button>
+                </span>
+              </div>`;
+            subs(sub2.id).forEach((sub3) => {
+              const isSub3Active = _activeChannelId === sub3.id;
+              html += `
+                <div class="channel-item channel-item--sub channel-item--sub3${isSub3Active ? ' channel-item--active' : ''}" data-cid="${ChEsc(sub3.id)}">
+                  <span class="channel-item__name">${ChEsc(sub3.name)}</span>
+                  <span class="channel-item__actions">
+                    <button class="btn btn--ghost btn--xs" data-action="rename" data-cid="${ChEsc(sub3.id)}" title="Rename">✎</button>
+                    <button class="btn btn--ghost btn--xs" data-action="del-ch" data-cid="${ChEsc(sub3.id)}" title="Delete">✕</button>
+                  </span>
+                </div>`;
+            });
+          });
         });
       });
     }
@@ -110,7 +134,7 @@ const ChannelsTeacher = (() => {
               <span class="ch-post-card__title">${ChEsc(p.title)}</span>
               <span class="badge badge--${p.status === 'published' ? 'published' : 'draft'}">${ChEsc(p.status)}</span>
             </div>
-            <p class="ch-post-card__meta">${ChEsc(p.author_name)} · ${ChFmt(p.updated_at)}${hasEn && hasAf ? ' · EN / AF' : ''}</p>
+            <p class="ch-post-card__meta">${ChEsc(p.author_name)} · ${ChFmt(p.updated_at)}${hasEn && hasAf ? ' · EN / AF' : ''}${p.expires_at ? ` · Expires ${ChFmt(p.expires_at)}` : ''}</p>
             <div class="table-actions">
               <button class="btn btn--secondary btn--sm" data-action="edit-post"   data-pid="${ChEsc(p.id)}">Edit</button>
               <button class="btn btn--secondary btn--sm" data-action="trans-post"  data-pid="${ChEsc(p.id)}">Translate</button>
@@ -131,7 +155,7 @@ const ChannelsTeacher = (() => {
     pane.querySelectorAll('[data-action="del-post"]').forEach((b) => b.addEventListener('click', () => deletePost(b.dataset.pid, id)));
   }
 
-  // ── Channel create/rename modal ───────────────────────────────
+  // ── Channel create/rename modal ───────────────────────────────────────────────────
   function showChannelModal(ch, parentId) {
     const isEdit = !!ch;
     const parentCh = parentId ? _channels.find((c) => c.id === parentId) : null;
@@ -190,7 +214,7 @@ const ChannelsTeacher = (() => {
     } catch (e) { _notify(e.message, true); }
   }
 
-  // ── Post editor modal ─────────────────────────────────────────
+  // ── Post editor modal ──────────────────────────────────────────────────────────────────
   function showPostEditor(post, channelId, posts) {
     _editingPost = post;
     const isEdit = !!post;
@@ -201,11 +225,11 @@ const ChannelsTeacher = (() => {
         <div class="modal modal--fullscreen">
           <div class="modal__head">
             <h2>${isEdit ? 'Edit Post' : 'New Post'}</h2>
-            <div style="display:flex;gap:.5rem;align-items:center">
+            <div style="display:flex;gap:.5rem;align-items:center;margin-left:auto">
               <button class="btn btn--secondary btn--sm" id="ch-post-draft">${isEdit && post.status === 'published' ? 'Unpublish' : 'Save Draft'}</button>
               <button class="btn btn--primary btn--sm" id="ch-post-publish">${isEdit && post.status === 'published' ? 'Update' : 'Publish'}</button>
-              <button class="modal__close" id="ch-post-close">×</button>
             </div>
+            <button class="modal__close" id="ch-post-close" title="Close">×</button>
           </div>
           <div class="modal__body">
             <div class="form-group">
@@ -222,6 +246,10 @@ const ChannelsTeacher = (() => {
                 <option value="">— None —</option>
                 ${eventOptions}
               </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Expiry Date (optional) — post moves to Archived after this date</label>
+              <input id="ch-f-expires" type="date" class="form-control" value="${ChEsc(post?.expires_at?.slice(0, 10) ?? '')}"/>
             </div>
             <div class="form-group">
               <label class="form-label">Language this post is written in</label>
@@ -251,13 +279,14 @@ const ChannelsTeacher = (() => {
       if (!title) { _notify('Title is required.', true); return; }
       const content_html = _quillInst ? _quillInst.root.innerHTML : (post?.content_html ?? '');
       const event_id = document.getElementById('ch-f-event').value || null;
+      const expires_at = document.getElementById('ch-f-expires').value || null;
       const lang = document.getElementById('ch-f-lang').value;
       try {
         if (isEdit) {
-          await apiPut(`/channel-posts/${post.id}`, { title, content_html, event_id, lang, status });
+          await apiPut(`/channel-posts/${post.id}`, { title, content_html, event_id, expires_at, lang, status });
           _notify(status === 'published' ? 'Post published!' : 'Draft saved.');
         } else {
-          await apiPost('/channel-posts', { channel_id: channelId, title, content_html, event_id, lang, status, school_id: SCHOOL_SLUG });
+          await apiPost('/channel-posts', { channel_id: channelId, title, content_html, event_id, expires_at, lang, status, school_id: SCHOOL_SLUG });
           _notify(status === 'published' ? 'Post published!' : 'Draft saved.');
         }
         close(); openChannel(channelId);
@@ -267,7 +296,7 @@ const ChannelsTeacher = (() => {
     document.getElementById('ch-post-publish').addEventListener('click', () => save('published'));
   }
 
-  // ── Translation modal ─────────────────────────────────────────
+  // ── Translation modal ──────────────────────────────────────────────────────────────────
   function showTranslateModal(post) {
     const targetLang = post.lang === 'en' ? 'af' : 'en';
     const targetLabel = targetLang === 'af' ? 'Afrikaans' : 'English';
@@ -331,7 +360,7 @@ const ChannelsTeacher = (() => {
   return { mount };
 })();
 
-// ── Student Channels UI ───────────────────────────────────────────────────────
+// ── Student Channels UI ─────────────────────────────────────────────────────────────────────────────────
 const ChannelsStudent = (() => {
   let _session;
   let _channels = [], _events = [];
@@ -356,13 +385,35 @@ const ChannelsStudent = (() => {
     topLevel.forEach((ch) => {
       const name = (lang === 'af' && ch.name_af) ? ch.name_af : ch.name;
       const subs = _channels.filter((c) => c.parent_id === ch.id);
-      html += `<details class="channel-section" open>
+      html += `<details class="channel-section">
         <summary class="channel-section__head">${ChEsc(name)}</summary>
         <div class="channel-section__body">`;
       if (subs.length) {
         subs.forEach((sub) => {
           const subName = (lang === 'af' && sub.name_af) ? sub.name_af : sub.name;
-          html += `<button class="channel-sub-btn" data-cid="${ChEsc(sub.id)}">${ChEsc(subName)}</button>`;
+          const sub2s = _channels.filter((c) => c.parent_id === sub.id);
+          if (sub2s.length) {
+            html += `<details class="channel-section channel-section--nested">
+              <summary class="channel-sub-btn channel-sub-btn--parent">${ChEsc(subName)}</summary>`;
+            sub2s.forEach((s2) => {
+              const s2Name = (lang === 'af' && s2.name_af) ? s2.name_af : s2.name;
+              const sub3s = _channels.filter((c) => c.parent_id === s2.id);
+              if (sub3s.length) {
+                html += `<details class="channel-section channel-section--nested2">
+                  <summary class="channel-sub-btn channel-sub-btn--nested">${ChEsc(s2Name)}</summary>`;
+                sub3s.forEach((s3) => {
+                  const s3Name = (lang === 'af' && s3.name_af) ? s3.name_af : s3.name;
+                  html += `<button class="channel-sub-btn channel-sub-btn--nested2" data-cid="${ChEsc(s3.id)}">${ChEsc(s3Name)}</button>`;
+                });
+                html += '</details>';
+              } else {
+                html += `<button class="channel-sub-btn channel-sub-btn--nested" data-cid="${ChEsc(s2.id)}">${ChEsc(s2Name)}</button>`;
+              }
+            });
+            html += '</details>';
+          } else {
+            html += `<button class="channel-sub-btn" data-cid="${ChEsc(sub.id)}">${ChEsc(subName)}</button>`;
+          }
         });
       } else {
         html += `<button class="channel-sub-btn" data-cid="${ChEsc(ch.id)}">${ChEsc(name)}</button>`;
@@ -383,22 +434,35 @@ const ChannelsStudent = (() => {
     try { posts = await apiGet(`/channel-posts?school_id=${SCHOOL_SLUG}&channel_id=${encodeURIComponent(channelId)}&lang=${lang}`); }
     catch (e) { container.innerHTML = `<p class="loading-text" style="color:red">${ChEsc(e.message)}</p>`; return; }
 
+    const today = new Date().toISOString().slice(0, 10);
+    const active   = posts.filter((p) => !p.expires_at || p.expires_at >= today);
+    const archived = posts.filter((p) => p.expires_at && p.expires_at < today);
+
+    const renderCards = (list) => list.map((p) => `
+      <article class="ch-post-card ch-post-card--student" data-pid="${ChEsc(p.id)}" role="button" tabindex="0">
+        <h3 class="ch-post-card__title">${ChEsc(p.title)}</h3>
+        <p class="ch-post-card__meta">${ChFmt(p.updated_at)}</p>
+      </article>`).join('');
+
     let html = `
       <div class="page-toolbar">
         <button class="btn btn--ghost btn--sm" id="ch-student-back">← ${t('back')}</button>
         <h2 class="page-title">${ChEsc(chName)}</h2>
       </div>`;
-    if (!posts.length) {
+    if (!active.length && !archived.length) {
       html += `<p class="dash-empty">${t('noPosts')}</p>`;
     } else {
-      html += '<div class="ch-post-list ch-post-list--student">';
-      posts.forEach((p) => {
-        html += `<article class="ch-post-card ch-post-card--student" data-pid="${ChEsc(p.id)}" role="button" tabindex="0">
-          <h3 class="ch-post-card__title">${ChEsc(p.title)}</h3>
-          <p class="ch-post-card__meta">${ChFmt(p.updated_at)}</p>
-        </article>`;
-      });
-      html += '</div>';
+      if (active.length) {
+        html += `<div class="ch-post-list ch-post-list--student">${renderCards(active)}</div>`;
+      } else {
+        html += `<p class="dash-empty">${t('noPosts')}</p>`;
+      }
+      if (archived.length) {
+        html += `<div class="ch-archived-section">
+          <h3 class="ch-archived-section__title">Archived</h3>
+          <div class="ch-post-list ch-post-list--student ch-post-list--archived">${renderCards(archived)}</div>
+        </div>`;
+      }
     }
     container.innerHTML = html;
     document.getElementById('ch-student-back').addEventListener('click', () => renderTree(container));
