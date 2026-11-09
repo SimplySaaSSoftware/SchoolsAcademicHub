@@ -52,6 +52,15 @@ async function downloadExport(path, filename) {
   URL.revokeObjectURL(url);
 }
 
+function _setPageIcon(url) {
+  ['icon', 'apple-touch-icon'].forEach((rel) => {
+    let link = document.querySelector(`link[rel="${rel}"]`);
+    if (!link) { link = document.createElement('link'); link.rel = rel; document.head.appendChild(link); }
+    link.href = url;
+    if (rel === 'icon') link.type = url.endsWith('.svg') ? 'image/svg+xml' : 'image/png';
+  });
+}
+
 function setBrand(el, logoUrl, name) {
   if (logoUrl) {
     const img = document.createElement('img');
@@ -60,6 +69,7 @@ function setBrand(el, logoUrl, name) {
     el.textContent = '';
     el.appendChild(img);
     el.appendChild(document.createTextNode(name));
+    _setPageIcon(logoUrl);
   } else {
     el.textContent = name;
   }
