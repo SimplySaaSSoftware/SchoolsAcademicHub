@@ -17,7 +17,7 @@
     const _color = school.primary_colour ?? '#1a56a0';
     document.title = `${school.name} — Teacher`;
     document.documentElement.style.setProperty('--primary', _color);
-    document.getElementById('school-brand').textContent = school.name;
+    setBrand(document.getElementById('school-brand'), school.logo_url, school.name);
     sessionStorage.setItem(_brandKey, _color);
   } catch {}
 
@@ -40,7 +40,7 @@
     notify.textContent = msg;
     notify.className   = `notification${isError ? ' notification--error' : ''}`;
     notify.hidden      = false;
-    if (isError) console.error('[Academic Hub]', msg);   // also readable in the browser console
+    if (isError) console.error('[School Hub]', msg);   // also readable in the browser console
     clearTimeout(_notifyTimer);
     // Errors stay long enough to read and copy; tap one to close it
     _notifyTimer = setTimeout(() => { notify.hidden = true; }, isError ? 20000 : 3500);
@@ -129,8 +129,6 @@
     const isTeacher = session.role === 'teacher';
     const grades = [...new Set(dash.map((b) => b.grade))].sort((a, b) => a - b);
     const shown  = dash.filter((b) => isTeacher || !adminGrade || String(b.grade) === adminGrade);
-    const multiGrade = new Set(shown.map((b) => b.grade)).size > 1;
-
     const tot = shown.reduce((t, b) => ({
       published: t.published + b.published, drafts: t.drafts + b.drafts,
       viewers: t.viewers + b.unique_viewers, attempts: t.attempts + b.attempts,
@@ -167,27 +165,24 @@
       </div>`;
 
     if (!shown.length) {
-      html += '<p class="dash-empty">No posts yet. Tap “+ New Post” to get started.</p>';
+      html += '<p class=”dash-empty”>No posts yet. Tap “+ New Post” to get started.</p>';
     } else {
-      html += '<div class="dash-grid">';
-      shown.forEach((b) => {
-        html += `
-          <button class="dash-card" data-grade="${esc(String(b.grade))}" data-subject="${esc(b.subject)}">
-            <span class="dash-card__head">
-              <span class="dash-card__title">${esc(b.subject)}</span>
-              ${(!isTeacher || multiGrade) ? `<span class="grade-badge">Grade ${esc(String(b.grade))}</span>` : ''}
-            </span>
-            <span class="dash-card__stats">
-              <span><strong>${b.published}</strong> published</span>
-              <span><strong>${b.drafts}</strong> draft${b.drafts === 1 ? '' : 's'}</span>
-              <span><strong>${b.unique_viewers}</strong> viewers</span>
-              <span><strong>${b.quizzes}</strong> quiz${b.quizzes === 1 ? '' : 'zes'}</span>
-            </span>
-            <span class="dash-card__foot">
-              <span>Avg score <strong>${pctText(b.avg_score)}</strong></span>
-              <span class="dash-card__go">View &rarr;</span>
-            </span>
+      // Group buckets by subject
+      const subjGroups = {};
+      shown.forEach((b) => { (subjGroups[b.subject] = subjGroups[b.subject] || []).push(b); });
+      html += '<div class=”dash-subjects”>';
+      Object.keys(subjGroups).sort().forEach((subj) => {
+        const buckets = subjGroups[subj].sort((a, b) => a.grade - b.grade);
+        html += `<div class=”subj-group”>
+          <h2 class=”subj-group__title”>${esc(subj)}</h2>
+          <div class=”grade-btn-row”>`;
+        buckets.forEach((b) => {
+          html += `<button class=”grade-btn” data-grade=”${esc(String(b.grade))}” data-subject=”${esc(b.subject)}”>
+            <span class=”grade-btn__label”>Grade ${esc(String(b.grade))}</span>
+            <span class=”grade-btn__info”>${b.published} published${b.avg_score != null ? ` &bull; ${b.avg_score}% avg` : ''}</span>
           </button>`;
+        });
+        html += '</div></div>';
       });
       html += '</div>';
     }
@@ -200,31 +195,49 @@
     document.getElementById('btn-channels').addEventListener('click', () => { view = { name: 'channels' }; renderView(); });
     document.getElementById('btn-calendar').addEventListener('click', () => { view = { name: 'calendar' }; renderView(); });
     document.getElementById('dash-grade')?.addEventListener('change', (e) => { adminGrade = e.target.value; renderDashboard(); });
-    main.querySelectorAll('.dash-card').forEach((el) => el.addEventListener('click', () => {
-      view = { name: 'subject', grade: Number(el.dataset.grade), subject: el.dataset.subject };
+    main.querySelectorAll('.grade-btn').forEach((el) => el.addEventListener('click', () => {
+      view = { name: 'subject', grade: Number(el.dataset.grade), subject: el.dataset.subject, term: '' };
       renderView();
     }));
   }
 
   function renderSubject(grade, subject) {
+    const activeTerm = view.term ?? '';
     const b = dash.find((x) => x.grade === grade && x.subject === subject);
-    const posts = allPosts.filter((p) => Number(p.grade) === grade && (p.subject || 'Unassigned') === subject);
+    const allSubjPosts = allPosts.filter((p) => Number(p.grade) === grade && (p.subject || 'Unassigned') === subject);
+    const allTerms = [...new Set(allSubjPosts.map((p) => p.term).filter(Boolean))].sort((a, c) => {
+      const na = Number(a), nc = Number(c);
+      return (!isNaN(na) && !isNaN(nc)) ? na - nc : String(a).localeCompare(String(c));
+    });
+    const posts = activeTerm ? allSubjPosts.filter((p) => String(p.term) === activeTerm) : allSubjPosts;
+
+    const termPillsHtml = allTerms.length > 1 ? `
+      <div class="filter-pills" role="group" aria-label="Term filter">
+        <button type="button" class="filter-pill ${!activeTerm ? 'filter-pill--on' : ''}" data-term="">All Terms</button>
+        ${allTerms.map((tm) => `<button type="button" class="filter-pill ${activeTerm === String(tm) ? 'filter-pill--on' : ''}" data-term="${esc(String(tm))}">Term ${esc(String(tm))}</button>`).join('')}
+      </div>` : '';
+
     const ps = (id) => b?.posts?.[id] ?? {};
     renderPostList(posts, {
       title: `${subject} · Grade ${grade}`,
       back: true,
       newDefaults: { grade, subject },
-      summary: b ? `
+      summary: termPillsHtml + (b ? `
         <div class="dash-totals">
           <div class="stat-card"><span class="stat-card__value">${b.published}</span><span class="stat-card__label">Published</span></div>
           <div class="stat-card"><span class="stat-card__value">${b.unique_viewers}</span><span class="stat-card__label">Unique viewers</span></div>
           <div class="stat-card"><span class="stat-card__value">${b.attempts}</span><span class="stat-card__label">Quiz attempts</span></div>
           <div class="stat-card"><span class="stat-card__value">${pctText(b.avg_score)}</span><span class="stat-card__label">Avg score</span></div>
           <div class="stat-card"><span class="stat-card__value">${pctText(b.pass_rate)}</span><span class="stat-card__label">Pass rate</span></div>
-        </div>` : '',
+        </div>` : ''),
       extraHead: '<th>Viewers</th><th>Attempts</th><th>Avg</th>',
       extraCells: (p) => `<td>${ps(p.id).unique_viewers ?? 0}</td><td>${ps(p.id).attempts ?? 0}</td><td>${pctText(ps(p.id).avg_score)}</td>`,
     });
+
+    main.querySelectorAll('[data-term]').forEach((btn) => btn.addEventListener('click', () => {
+      view = { ...view, term: btn.dataset.term };
+      renderSubject(grade, subject);
+    }));
   }
 
   function renderPostList(posts, opts = {}) {

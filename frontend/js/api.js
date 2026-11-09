@@ -51,3 +51,31 @@ async function downloadExport(path, filename) {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+function _setPageIcon(url) {
+  // Remove all existing icon links (there may be multiple — .ico and .svg fallback)
+  document.querySelectorAll('link[rel="icon"]').forEach((l) => l.remove());
+  const icon = document.createElement('link');
+  icon.rel  = 'icon';
+  icon.href = url;
+  icon.type = url.endsWith('.svg') ? 'image/svg+xml' : 'image/png';
+  document.head.appendChild(icon);
+
+  let atl = document.querySelector('link[rel="apple-touch-icon"]');
+  if (!atl) { atl = document.createElement('link'); atl.rel = 'apple-touch-icon'; document.head.appendChild(atl); }
+  atl.href = url;
+}
+
+function setBrand(el, logoUrl, name) {
+  if (logoUrl) {
+    const img = document.createElement('img');
+    img.src = logoUrl; img.alt = name; img.className = 'site-header__logo';
+    img.onerror = function () { this.style.display = 'none'; };
+    el.textContent = '';
+    el.appendChild(img);
+    el.appendChild(document.createTextNode(name));
+    _setPageIcon(logoUrl);
+  } else {
+    el.textContent = name;
+  }
+}

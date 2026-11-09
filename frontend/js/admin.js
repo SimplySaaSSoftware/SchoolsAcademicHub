@@ -17,7 +17,7 @@
     const _color = school.primary_colour ?? '#1a56a0';
     document.title = `${school.name} — Admin`;
     document.documentElement.style.setProperty('--primary', _color);
-    document.getElementById('school-brand').textContent = `${school.name} — Admin`;
+    setBrand(document.getElementById('school-brand'), school.logo_url, `${school.name} — Admin`);
     sessionStorage.setItem(_brandKey, _color);
   } catch {}
 
@@ -28,7 +28,7 @@
     notify.textContent = msg;
     notify.className   = `notification${isError ? ' notification--error' : ''}`;
     notify.hidden      = false;
-    if (isError) console.error('[Academic Hub]', msg);   // also readable in the browser console
+    if (isError) console.error('[School Hub]', msg);   // also readable in the browser console
     clearTimeout(_notifyTimer);
     // Errors stay long enough to read and copy; tap one to close it
     _notifyTimer = setTimeout(() => { notify.hidden = true; }, isError ? 20000 : 3500);

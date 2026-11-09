@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Academic Hub — Login</title>
+  <title>School Hub — Login</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico"/>
+  <link rel="icon" type="image/svg+xml" href="/icon.svg"/>
+  <link rel="apple-touch-icon" href="/icon-180.png"/>
+  <link rel="manifest" href="/manifest.json"/>
+  <meta name="theme-color" content="#4F46E5"/>
   <link rel="stylesheet" href="/css/main.css"/>
 </head>
 <body>
@@ -64,7 +69,7 @@
   </div>
 
   <div id="loading-msg" style="text-align:center;padding:3rem;color:#888;" data-i18n="loading">Loading…</div>
-  <p class="login-footer">&copy; <span id="year"></span> Academic Hub</p>
+  <p class="login-footer">&copy; <span id="year"></span> School Hub</p>
 
 </main>
 
@@ -105,8 +110,10 @@ function hideError()    { errBanner.hidden = true; }
   // Apply branding
   document.title = `${school.name} — Sign in`;
   document.documentElement.style.setProperty('--primary', school.primary_colour);
-  if (school.logo_url) document.getElementById('school-logo').src = school.logo_url;
-  else document.getElementById('login-logo-fallback').style.display = '';
+  if (school.logo_url) {
+    document.getElementById('school-logo').src = school.logo_url;
+    _setPageIcon(school.logo_url);
+  } else document.getElementById('login-logo-fallback').style.display = '';
   document.getElementById('school-name').textContent = school.name;
   document.getElementById('login-logo').hidden = false;
 

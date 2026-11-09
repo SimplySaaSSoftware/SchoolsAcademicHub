@@ -100,7 +100,7 @@ async function callback(req: HttpRequest, _ctx: InvocationContext): Promise<Http
         ? `Google rejected the redirect address. Add ${ru} under Authorised redirect URIs in your Google client.`
         : `Google said: ${data.error}${data.error_description ? ' — ' + data.error_description : ''}`);
     }
-    if (!data.refresh_token) return fail('Google did not return a long-lived sign-in. Remove SchoolsAcademicHub at myaccount.google.com/permissions, then try again.');
+    if (!data.refresh_token) return fail('Google did not return a long-lived sign-in. Remove School Hub at myaccount.google.com/permissions, then try again.');
 
     let email: string | undefined;
     try { email = JSON.parse(Buffer.from(data.id_token!.split('.')[1], 'base64url').toString()).email; } catch { /* email is only for display */ }
