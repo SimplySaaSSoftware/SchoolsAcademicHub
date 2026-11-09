@@ -69,6 +69,9 @@
   let filter = (() => { try { return sessionStorage.getItem('hub_filter') || 'todo'; } catch { return 'todo'; } })();
   const setFilter = (f) => { filter = f; try { sessionStorage.setItem('hub_filter', f); } catch {} renderPostList(); };
 
+  // Term filter — '' means all terms
+  let activeTerm = '';
+
   // 'todo' | 'retry' | 'done' for individual students; null for shared grade PINs (no personal progress)
   // A quiz is done when passed (80%+); a post without a quiz is done once opened.
   function postStatus(p) {
@@ -90,7 +93,18 @@
     const doneCount = tracked ? allPosts.filter((p) => status(p) === 'done').length : 0;
     const todoCount = allPosts.length - doneCount;
     const f = tracked ? filter : 'all';
-    const shown = allPosts.filter((p) => f === 'all' || (f === 'done' ? status(p) === 'done' : status(p) !== 'done'));
+
+    // Available terms (sorted numerically where possible)
+    const allTerms = [...new Set(allPosts.map((p) => p.term).filter(Boolean))].sort((a, b) => {
+      const na = Number(a), nb = Number(b);
+      return (!isNaN(na) && !isNaN(nb)) ? na - nb : String(a).localeCompare(String(b));
+    });
+
+    const shown = allPosts.filter((p) => {
+      const matchFilter = f === 'all' || (f === 'done' ? status(p) === 'done' : status(p) !== 'done');
+      const matchTerm   = !activeTerm || String(p.term) === activeTerm;
+      return matchFilter && matchTerm;
+    });
 
     let html = '<div class="posts-grid">';
     if (tracked) {
@@ -103,6 +117,13 @@
           ${[['todo', t('tabTodo'), todoCount], ['done', t('tabDone'), doneCount], ['all', t('tabAll'), allPosts.length]].map(([k, label, n]) =>
             `<button type="button" class="dash-tab ${f === k ? 'dash-tab--on' : ''}" data-filter="${k}" aria-pressed="${f === k}">${label} <span class="dash-tab__n">${n}</span></button>`).join('')}
         </div>`;
+    }
+
+    if (allTerms.length > 1) {
+      html += `<div class="filter-pills" role="group" aria-label="${t('term')}">
+        <button type="button" class="filter-pill ${!activeTerm ? 'filter-pill--on' : ''}" data-term="">${t('allTerms')}</button>
+        ${allTerms.map((tm) => `<button type="button" class="filter-pill ${activeTerm === String(tm) ? 'filter-pill--on' : ''}" data-term="${esc(String(tm))}">${t('term')} ${esc(String(tm))}</button>`).join('')}
+      </div>`;
     }
 
     if (!shown.length) {
@@ -143,6 +164,7 @@
     main.innerHTML = html;
 
     main.querySelectorAll('[data-filter]').forEach((b) => b.addEventListener('click', () => setFilter(b.dataset.filter)));
+    main.querySelectorAll('[data-term]').forEach((b) => b.addEventListener('click', () => { activeTerm = b.dataset.term; renderPostList(); }));
     main.querySelectorAll('.post-card').forEach((card) => {
       const open = () => openPost(card.dataset.id);
       card.addEventListener('click', open);
