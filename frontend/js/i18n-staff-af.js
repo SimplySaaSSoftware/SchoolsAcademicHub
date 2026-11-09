@@ -18,6 +18,7 @@ addStaffAf({
   // ── Dashboard and lists ──
   '+ New Post': '+ Nuwe les', 'All Posts': 'Alle lesse', 'Students': 'Leerders', 'Student': 'Leerder',
   'All grades': 'Alle grade', 'View →': 'Kyk →',
+  'All Terms': 'Alle kwartale', 'Term filter': 'Kwartaalfilter',
   'Published': 'Gepubliseer', 'Drafts': 'Konsepte', 'Student views': 'Leerderkyke', 'Avg quiz score': 'Gem. vasvra-telling',
   'published': 'gepubliseer', 'draft': 'konsep', 'drafts': 'konsepte', 'viewers': 'kykers', 'quiz': 'vasvra', 'quizzes': 'vasvrae',
   'Avg score': 'Gem. telling', 'Avg': 'Gem.', 'Unique viewers': 'Unieke kykers', 'Quiz attempts': 'Vasvra-pogings',
@@ -149,6 +150,8 @@ addPattern(/^(\d+) drafts$/, '$1 konsepte');
 addPattern(/^(\d+) quiz$/, '$1 vasvra');
 addPattern(/^(\d+) quizzes$/, '$1 vasvrae');
 addPattern(/^(\d+) (published)$/, '$1 gepubliseer');
+addPattern(/^(\d+) published$/, '$1 gepubliseer');
+addPattern(/^(\d+) published · (\d+)% avg$/, '$1 gepubliseer · $2% gem.');
 addPattern(/^(\d+) viewers$/, '$1 kykers');
 
 // Languages inside sentences ("English version", "No English version yet…")
