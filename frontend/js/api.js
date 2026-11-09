@@ -51,3 +51,16 @@ async function downloadExport(path, filename) {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+function setBrand(el, logoUrl, name) {
+  if (logoUrl) {
+    const img = document.createElement('img');
+    img.src = logoUrl; img.alt = name; img.className = 'site-header__logo';
+    img.onerror = function () { this.style.display = 'none'; };
+    el.textContent = '';
+    el.appendChild(img);
+    el.appendChild(document.createTextNode(name));
+  } else {
+    el.textContent = name;
+  }
+}
