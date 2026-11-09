@@ -104,7 +104,7 @@ async function driveRequest(url: string, options: RequestInit = {}): Promise<any
   return res.json();
 }
 
-async function findOrCreateFolder(name: string, parentId: string): Promise<string> {
+export async function findOrCreateFolder(name: string, parentId: string): Promise<string> {
   const token = await getAccessToken();
   const q     = encodeURIComponent(`name='${name}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`);
   const res   = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, {
@@ -181,6 +181,31 @@ export async function setPublicReadable(driveId: string): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ role: 'reader', type: 'anyone' }),
   });
+}
+
+/** Upload a small file (<5 MB) in a single multipart request and return its Drive file ID. */
+export async function uploadSmallFile(
+  buffer: Buffer, mimeType: string, filename: string, folderId: string
+): Promise<string> {
+  const token    = await getAccessToken();
+  const boundary = '----SchoolHubBoundary';
+  const meta     = JSON.stringify({ name: filename, parents: [folderId] });
+  const body     = Buffer.concat([
+    Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`),
+    buffer,
+    Buffer.from(`\r\n--${boundary}--`),
+  ]);
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': `multipart/related; boundary=${boundary}`,
+    },
+    body,
+  });
+  if (!res.ok) throw new Error(`Drive upload failed: ${res.status} — ${await res.text()}`);
+  const data = await res.json() as { id: string };
+  return data.id;
 }
 
 export async function serveFile(driveId: string): Promise<{ stream: ReadableStream; mimeType: string; name: string }> {
