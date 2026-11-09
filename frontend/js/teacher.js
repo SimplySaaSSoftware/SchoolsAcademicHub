@@ -17,7 +17,7 @@
     const _color = school.primary_colour ?? '#1a56a0';
     document.title = `${school.name} — Teacher`;
     document.documentElement.style.setProperty('--primary', _color);
-    document.getElementById('school-brand').textContent = school.name;
+    setBrand(document.getElementById('school-brand'), school.logo_url, school.name);
     sessionStorage.setItem(_brandKey, _color);
   } catch {}
 
