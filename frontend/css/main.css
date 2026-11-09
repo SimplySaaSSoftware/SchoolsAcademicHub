@@ -175,13 +175,20 @@ select.form-control { appearance: auto; }
 }
 .modal--wide { max-width: 780px; }
 .modal--fullscreen { max-width: 100% !important; max-height: 100vh !important; border-radius: 0; height: 100vh; }
-.modal__header {
+.modal__header, .modal__head {
   display: flex; align-items: center; gap: .75rem;
   padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-.modal__header h2 { font-size: 1.1rem; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.modal__header h2, .modal__head h2 { font-size: 1.1rem; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .modal__body { padding: 1.25rem; overflow-y: auto; }
+.modal__close {
+  background: none; border: none; cursor: pointer; color: var(--text-light);
+  font-size: 1.375rem; line-height: 1; padding: .25rem .4rem;
+  border-radius: var(--radius); flex-shrink: 0; min-width: 36px; min-height: 36px;
+  display: flex; align-items: center; justify-content: center;
+}
+.modal__close:hover { background: var(--bg); color: var(--text); }
 
 /* Buttons on light backgrounds (modal headers, editor toolbar) */
 .modal__header .btn--ghost,
@@ -679,8 +686,9 @@ html[lang="af"] .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="3"]::b
 .channel-item { display: flex; align-items: center; justify-content: space-between; padding: .5rem .75rem; cursor: pointer; border-radius: 0; border-left: 3px solid transparent; min-height: 44px; gap: .25rem; }
 .channel-item:hover { background: var(--bg); }
 .channel-item--active { border-left-color: var(--primary); background: var(--bg); font-weight: 600; }
-.channel-item--sub { padding-left: 1.75rem; }
+.channel-item--sub  { padding-left: 1.75rem; }
 .channel-item--sub2 { padding-left: 3rem; }
+.channel-item--sub3 { padding-left: 4.25rem; }
 .channel-item__name { font-size: .9375rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .channel-item__actions { display: flex; gap: .2rem; flex-shrink: 0; }
 .channel-tree .btn--ghost { color: var(--text-light); border-color: var(--border); background: transparent; }
@@ -715,6 +723,12 @@ details[open] > .channel-section__head::after { transform: rotate(90deg); }
 details[open] > .channel-sub-btn--parent::after { transform: rotate(90deg); }
 .channel-sub-btn--nested { padding-left: 1.5rem; border-radius: 0; border: none; border-bottom: 1px solid var(--border); background: var(--surface); }
 .channel-sub-btn--nested:last-child { border-bottom: none; }
+.channel-section--nested2 { box-shadow: none; border: none; border-radius: 0; overflow: hidden; margin: 0; border-bottom: 1px solid var(--border); }
+.channel-section--nested2:last-child { border-bottom: none; }
+.channel-section--nested2 > .channel-sub-btn--nested { border-bottom: 1px solid var(--border); font-weight: 600; }
+.channel-sub-btn--nested2 { padding-left: 2.75rem; border-radius: 0; border: none; border-bottom: 1px solid var(--border); background: var(--bg); font-size: .9rem; }
+.channel-sub-btn--nested2:last-child { border-bottom: none; }
+.channel-sub-btn--nested2::after { content: none; }
 
 .ch-post-card--student { cursor: pointer; border-left: 4px solid var(--primary); }
 .ch-post-card--student:hover, .ch-post-card--student:active { box-shadow: 0 3px 12px rgba(0,0,0,.12); }

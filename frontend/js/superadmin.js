@@ -9,7 +9,7 @@
     notify.textContent = msg;
     notify.className   = `notification${isError ? ' notification--error' : ''}`;
     notify.hidden      = false;
-    if (isError) console.error('[Academic Hub]', msg);   // also readable in the browser console
+    if (isError) console.error('[School Hub]', msg);   // also readable in the browser console
     clearTimeout(_notifyTimer);
     // Errors stay long enough to read and copy; tap one to close it
     _notifyTimer = setTimeout(() => { notify.hidden = true; }, isError ? 20000 : 3500);

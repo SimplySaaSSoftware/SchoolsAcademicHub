@@ -67,10 +67,22 @@ const ChannelsTeacher = (() => {
               <div class="channel-item channel-item--sub channel-item--sub2${isSub2Active ? ' channel-item--active' : ''}" data-cid="${ChEsc(sub2.id)}">
                 <span class="channel-item__name">${ChEsc(sub2.name)}</span>
                 <span class="channel-item__actions">
+                  <button class="btn btn--ghost btn--xs" data-action="add-sub" data-cid="${ChEsc(sub2.id)}" title="Add sub-channel">+ Sub</button>
                   <button class="btn btn--ghost btn--xs" data-action="rename" data-cid="${ChEsc(sub2.id)}" title="Rename">✎</button>
                   <button class="btn btn--ghost btn--xs" data-action="del-ch" data-cid="${ChEsc(sub2.id)}" title="Delete">✕</button>
                 </span>
               </div>`;
+            subs(sub2.id).forEach((sub3) => {
+              const isSub3Active = _activeChannelId === sub3.id;
+              html += `
+                <div class="channel-item channel-item--sub channel-item--sub3${isSub3Active ? ' channel-item--active' : ''}" data-cid="${ChEsc(sub3.id)}">
+                  <span class="channel-item__name">${ChEsc(sub3.name)}</span>
+                  <span class="channel-item__actions">
+                    <button class="btn btn--ghost btn--xs" data-action="rename" data-cid="${ChEsc(sub3.id)}" title="Rename">✎</button>
+                    <button class="btn btn--ghost btn--xs" data-action="del-ch" data-cid="${ChEsc(sub3.id)}" title="Delete">✕</button>
+                  </span>
+                </div>`;
+            });
           });
         });
       });
@@ -213,11 +225,11 @@ const ChannelsTeacher = (() => {
         <div class="modal modal--fullscreen">
           <div class="modal__head">
             <h2>${isEdit ? 'Edit Post' : 'New Post'}</h2>
-            <div style="display:flex;gap:.5rem;align-items:center">
+            <div style="display:flex;gap:.5rem;align-items:center;margin-left:auto">
               <button class="btn btn--secondary btn--sm" id="ch-post-draft">${isEdit && post.status === 'published' ? 'Unpublish' : 'Save Draft'}</button>
               <button class="btn btn--primary btn--sm" id="ch-post-publish">${isEdit && post.status === 'published' ? 'Update' : 'Publish'}</button>
-              <button class="modal__close" id="ch-post-close">×</button>
             </div>
+            <button class="modal__close" id="ch-post-close" title="Close">×</button>
           </div>
           <div class="modal__body">
             <div class="form-group">
@@ -368,7 +380,7 @@ const ChannelsStudent = (() => {
     topLevel.forEach((ch) => {
       const name = (lang === 'af' && ch.name_af) ? ch.name_af : ch.name;
       const subs = _channels.filter((c) => c.parent_id === ch.id);
-      html += `<details class="channel-section" open>
+      html += `<details class="channel-section">
         <summary class="channel-section__head">${ChEsc(name)}</summary>
         <div class="channel-section__body">`;
       if (subs.length) {
@@ -376,11 +388,22 @@ const ChannelsStudent = (() => {
           const subName = (lang === 'af' && sub.name_af) ? sub.name_af : sub.name;
           const sub2s = _channels.filter((c) => c.parent_id === sub.id);
           if (sub2s.length) {
-            html += `<details class="channel-section channel-section--nested" open>
+            html += `<details class="channel-section channel-section--nested">
               <summary class="channel-sub-btn channel-sub-btn--parent">${ChEsc(subName)}</summary>`;
             sub2s.forEach((s2) => {
               const s2Name = (lang === 'af' && s2.name_af) ? s2.name_af : s2.name;
-              html += `<button class="channel-sub-btn channel-sub-btn--nested" data-cid="${ChEsc(s2.id)}">${ChEsc(s2Name)}</button>`;
+              const sub3s = _channels.filter((c) => c.parent_id === s2.id);
+              if (sub3s.length) {
+                html += `<details class="channel-section channel-section--nested2">
+                  <summary class="channel-sub-btn channel-sub-btn--nested">${ChEsc(s2Name)}</summary>`;
+                sub3s.forEach((s3) => {
+                  const s3Name = (lang === 'af' && s3.name_af) ? s3.name_af : s3.name;
+                  html += `<button class="channel-sub-btn channel-sub-btn--nested2" data-cid="${ChEsc(s3.id)}">${ChEsc(s3Name)}</button>`;
+                });
+                html += '</details>';
+              } else {
+                html += `<button class="channel-sub-btn channel-sub-btn--nested" data-cid="${ChEsc(s2.id)}">${ChEsc(s2Name)}</button>`;
+              }
             });
             html += '</details>';
           } else {
