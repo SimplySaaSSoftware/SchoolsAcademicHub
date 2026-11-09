@@ -680,6 +680,7 @@ html[lang="af"] .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="3"]::b
 .channel-item:hover { background: var(--bg); }
 .channel-item--active { border-left-color: var(--primary); background: var(--bg); font-weight: 600; }
 .channel-item--sub { padding-left: 1.75rem; }
+.channel-item--sub2 { padding-left: 3rem; }
 .channel-item__name { font-size: .9375rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .channel-item__actions { display: flex; gap: .2rem; flex-shrink: 0; }
 .channel-tree .btn--ghost { color: var(--text-light); border-color: var(--border); background: transparent; }
@@ -702,6 +703,10 @@ html[lang="af"] .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="3"]::b
 .channel-section__body { padding: .4rem 0 .4rem .75rem; display: flex; flex-direction: column; gap: .25rem; }
 .channel-sub-btn { text-align: left; background: none; border: none; border-radius: var(--radius); padding: .6rem .75rem; font-size: .9375rem; cursor: pointer; color: var(--text); min-height: 44px; display: block; width: 100%; }
 .channel-sub-btn:hover { background: var(--bg); color: var(--primary); }
+.channel-section--nested { margin: 0; }
+.channel-sub-btn--parent { font-weight: 600; font-size: .9rem; color: var(--text-light); padding: .5rem .75rem .5rem 0; min-height: 40px; list-style: none; cursor: pointer; display: flex; align-items: center; width: 100%; background: none; border: none; }
+.channel-sub-btn--parent::marker, .channel-sub-btn--parent::-webkit-details-marker { display: none; }
+.channel-sub-btn--nested { padding-left: 1.25rem; font-size: .9rem; }
 
 .ch-post-card--student { cursor: pointer; }
 .ch-post-card--student:hover { box-shadow: 0 2px 10px rgba(0,0,0,.12); }
