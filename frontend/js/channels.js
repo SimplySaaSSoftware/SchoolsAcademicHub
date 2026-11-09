@@ -1,10 +1,10 @@
 /* channels.js — Communication Channels UI for teacher and student portals */
 
-// ── Shared helpers ─────────────────────────────────────────────────────────────────────────────────
+// ── Shared helpers ───────────────────────────────────────────────────────────────────────────────────────────────────
 const ChEsc = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const ChFmt = (d) => { const dt = new Date(d); return isNaN(dt) ? '' : dt.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }); };
 
-// ── Teacher Channels UI ─────────────────────────────────────────────────────────────────────────────────
+// ── Teacher Channels UI ───────────────────────────────────────────────────────────────────────────────────────────────────
 const ChannelsTeacher = (() => {
   let _main, _session, _school, _notify, _quillInst;
   let _channels = [], _events = [];
@@ -155,7 +155,7 @@ const ChannelsTeacher = (() => {
     pane.querySelectorAll('[data-action="del-post"]').forEach((b) => b.addEventListener('click', () => deletePost(b.dataset.pid, id)));
   }
 
-  // ── Channel create/rename modal ───────────────────────────────────────────────────
+  // ── Channel create/rename modal ────────────────────────────────────────────
   function showChannelModal(ch, parentId) {
     const isEdit = !!ch;
     const parentCh = parentId ? _channels.find((c) => c.id === parentId) : null;
@@ -214,7 +214,7 @@ const ChannelsTeacher = (() => {
     } catch (e) { _notify(e.message, true); }
   }
 
-  // ── Post editor modal ──────────────────────────────────────────────────────────────────
+  // ── Post editor modal ───────────────────────────────────────────────────────────────────────────────────────
   function showPostEditor(post, channelId, posts) {
     _editingPost = post;
     const isEdit = !!post;
@@ -296,7 +296,7 @@ const ChannelsTeacher = (() => {
     document.getElementById('ch-post-publish').addEventListener('click', () => save('published'));
   }
 
-  // ── Translation modal ──────────────────────────────────────────────────────────────────
+  // ── Translation modal ──────────────────────────────────────────────────────────────────────────────────────
   function showTranslateModal(post) {
     const targetLang = post.lang === 'en' ? 'af' : 'en';
     const targetLabel = targetLang === 'af' ? 'Afrikaans' : 'English';
@@ -360,7 +360,7 @@ const ChannelsTeacher = (() => {
   return { mount };
 })();
 
-// ── Student Channels UI ─────────────────────────────────────────────────────────────────────────────────
+// ── Student Channels UI ───────────────────────────────────────────────────────────────────────────────────────────────────
 const ChannelsStudent = (() => {
   let _session;
   let _channels = [], _events = [];
