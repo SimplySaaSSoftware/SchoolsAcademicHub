@@ -368,7 +368,7 @@ const ChannelsStudent = (() => {
     topLevel.forEach((ch) => {
       const name = (lang === 'af' && ch.name_af) ? ch.name_af : ch.name;
       const subs = _channels.filter((c) => c.parent_id === ch.id);
-      html += `<details class="channel-section" open>
+      html += `<details class="channel-section">
         <summary class="channel-section__head">${ChEsc(name)}</summary>
         <div class="channel-section__body">`;
       if (subs.length) {
