@@ -329,8 +329,20 @@
             <input id="s-slug" class="form-control" value="${esc(school?.slug ?? '')}" placeholder="humansdorp-primary" ${isEdit ? 'readonly style="background:#f5f5f5"' : ''}/>
           </div>
           <div class="form-group">
-            <label class="form-label">Logo URL</label>
-            <input id="s-logo" class="form-control" type="url" value="${esc(school?.logo_url ?? '')}" placeholder="https://…/logo.png"/>
+            <label class="form-label">School Logo</label>
+            <div style="display:flex;flex-direction:column;gap:.5rem">
+              <div style="display:flex;gap:.5rem;align-items:center">
+                <label class="btn btn--secondary btn--sm" style="cursor:pointer;flex-shrink:0">
+                  Upload image
+                  <input id="s-logo-file" type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" style="display:none"/>
+                </label>
+                <input id="s-logo" class="form-control" type="url" value="${esc(school?.logo_url ?? '')}" placeholder="https://…/logo.png (or upload above)"/>
+              </div>
+              <div id="s-logo-preview" style="display:${school?.logo_url ? 'flex' : 'none'};align-items:center;gap:.5rem">
+                <img id="s-logo-img" src="${esc(school?.logo_url ?? '')}" alt="Logo preview" style="height:48px;max-width:120px;object-fit:contain;border:1px solid #e5e7eb;border-radius:4px;padding:2px;background:#fff" onerror="this.style.display='none'"/>
+                <span id="s-logo-status" style="font-size:.8rem;color:var(--text-light)"></span>
+              </div>
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">Primary Colour</label>
@@ -403,6 +415,43 @@
     const text   = overlay.querySelector('#s-colour');
     picker.addEventListener('input', () => { text.value = picker.value; });
     text.addEventListener('input',   () => { if (/^#[0-9a-f]{6}$/i.test(text.value)) picker.value = text.value; });
+
+    // Logo URL preview on manual input
+    const logoInput   = overlay.querySelector('#s-logo');
+    const logoPreview = overlay.querySelector('#s-logo-preview');
+    const logoImg     = overlay.querySelector('#s-logo-img');
+    logoInput.addEventListener('input', () => {
+      const url = logoInput.value.trim();
+      if (url) { logoImg.src = url; logoImg.style.display = ''; logoPreview.style.display = 'flex'; }
+      else     { logoPreview.style.display = 'none'; }
+    });
+
+    // Logo file upload
+    overlay.querySelector('#s-logo-file').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const statusEl = overlay.querySelector('#s-logo-status');
+      statusEl.textContent = 'Uploading…';
+      logoPreview.style.display = 'flex';
+      logoImg.style.display = 'none';
+      try {
+        const data = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        const result = await apiPost('/school-logo', { filename: file.name, mimeType: file.type, data });
+        logoInput.value = result.url;
+        logoImg.src = result.url;
+        logoImg.style.display = '';
+        statusEl.textContent = 'Uploaded';
+        setTimeout(() => { statusEl.textContent = ''; }, 3000);
+      } catch (err) {
+        statusEl.textContent = `Upload failed: ${err.message}`;
+        logoPreview.style.display = 'none';
+      }
+    });
 
     overlay.querySelector('#btn-save-school').addEventListener('click', async () => {
       const gradesRaw = overlay.querySelector('#s-grades').value.split(',').map((g) => Number(g.trim())).filter((g) => g > 0);
