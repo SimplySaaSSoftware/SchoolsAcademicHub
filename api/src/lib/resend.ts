@@ -38,7 +38,7 @@ export async function sendEmail({ to, subject, school, htmlBody }: SendOptions):
           <!-- Footer -->
           <tr>
             <td style="padding:1rem 2rem;text-align:center;font-size:0.8rem;color:#888;border-top:1px solid #eee;">
-              &copy; ${new Date().getFullYear()} ${school.name} &mdash; Powered by HPS Academic Hub
+              &copy; ${new Date().getFullYear()} ${school.name} &mdash; Powered by School Hub
             </td>
           </tr>
         </table>
@@ -68,7 +68,7 @@ export async function sendPasswordReset(
     school,
     htmlBody: `
       <h2 style="margin-top:0;">Hi ${name},</h2>
-      <p>You requested a password reset for your ${school.name} Academic Hub account.</p>
+      <p>You requested a password reset for your ${school.name} School Hub account.</p>
       <p style="text-align:center;margin:2rem 0;">
         <a href="${resetUrl}"
            style="background:${school.primary_colour};color:#ffffff;padding:0.75rem 2rem;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;">
