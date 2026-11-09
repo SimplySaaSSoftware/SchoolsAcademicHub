@@ -757,6 +757,9 @@ details[open] > .channel-sub-btn--parent::after { transform: rotate(90deg); }
 .ch-post-card--student:hover, .ch-post-card--student:active { box-shadow: 0 3px 12px rgba(0,0,0,.12); }
 .ch-post-card--student .ch-post-card__title { white-space: normal; overflow: visible; text-overflow: unset; font-size: 1rem; line-height: 1.4; }
 .ch-post-list--student { gap: .6rem; }
+.ch-post-list--archived .ch-post-card--student { border-left-color: var(--border); opacity: .75; }
+.ch-archived-section { margin-top: 1.75rem; }
+.ch-archived-section__title { font-size: .9375rem; font-weight: 700; color: var(--text-light); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 .6rem; }
 .ch-post-view { max-width: 720px; margin: 0 auto; padding: 0 1rem 2rem; }
 
 /* Linked event card inside a channel post */

@@ -24,7 +24,7 @@ addStaffAf({
   'Avg score': 'Gem. telling', 'Avg': 'Gem.', 'Unique viewers': 'Unieke kykers', 'Quiz attempts': 'Vasvra-pogings',
   'Pass rate': 'Slaagsyfer', 'Viewers': 'Kykers', 'Attempts': 'Pogings',
   'Title': 'Titel', 'Grade': 'Graad', 'Subject': 'Vak', 'Term': 'Kwartaal', 'Status': 'Status', 'Author': 'Skrywer',
-  'No posts yet.': 'Nog geen lesse nie.', 'No posts yet. Tap “+ New Post” to get started.': 'Nog geen lesse nie. Tik “+ Nuwe les” om te begin.',
+  'No posts yet.': 'Nog geen lesse nie.', 'No posts yet. Tap "+ New Post" to get started.': 'Nog geen lesse nie. Tik "+ Nuwe les" om te begin.',
   'Post deleted.': 'Les geskrap.', 'Post published!': 'Les gepubliseer!', 'Draft saved.': 'Konsep gestoor.',
 
   // ── Post editor ──
@@ -98,7 +98,9 @@ addStaffAf({
   'Post published!': 'Plasing gepubliseer!', 'Draft saved.': 'Konsep gestoor.', 'Post deleted.': 'Plasing geskrap.',
   'Title is required.': 'Titel is verpligtend.',
   'Link to Calendar Event (optional)': 'Koppel aan kalendergebeurtenis (opsioneel)',
+  'Expiry Date (optional) — post moves to Archived after this date': 'Vervaldatum (opsioneel) — plasing skuif na Argief na hierdie datum',
   'Language this post is written in': 'Taal waarin hierdie plasing geskryf is',
+  'Archived': 'Argief',
   'Save Draft': 'Stoor konsep', 'Unpublish': 'Depubliseer', 'Update': 'Dateer op', 'Translate': 'Vertaal',
   'Save Draft': 'Stoor konsep',
   'Translate': 'Vertaal',
@@ -153,6 +155,7 @@ addPattern(/^(\d+) (published)$/, '$1 gepubliseer');
 addPattern(/^(\d+) published$/, '$1 gepubliseer');
 addPattern(/^(\d+) published · (\d+)% avg$/, '$1 gepubliseer · $2% gem.');
 addPattern(/^(\d+) viewers$/, '$1 kykers');
+addPattern(/^· Expires (.+)$/, (_, d) => `· Verval ${d}`);
 
 // Languages inside sentences ("English version", "No English version yet…")
 addPattern(/^(English|Afrikaans) version$/, (_, l) => `${LANG_ADJ[l]} weergawe`);
@@ -190,7 +193,7 @@ addPattern(/^— (.+)$/, (_, rest) => {
   return `— ${parts.join(', ')}`;
 });
 addPattern(/^You can only manage Grade (\d+)\. This row says Grade (\d+)\.$/, 'Jy kan slegs Graad $1 bestuur. Hierdie ry sê Graad $2.');
-addPattern(/^Grade must be a number from 1 to 13( \(found "(.*)"\))?\.$/, (_, __, f) => `Graad moet 'n getal van 1 tot 13 wees${f !== undefined ? ` (gevind: "${f}")` : ''}.`);
+addPattern(/^Grade must be a number from 1 to 13( \(found "(.*)"\))?\.$/,  (_, __, f) => `Graad moet 'n getal van 1 tot 13 wees${f !== undefined ? ` (gevind: "${f}")` : ''}.`);
 addPattern(/^More than one student is called "(.+)" in Grade (\d+)\. Use the Student ID\.$/, (_, n, g) => `Meer as een leerder heet "${n}" in Graad ${g}. Gebruik die Leerder-ID.`);
 addPattern(/^"(.+)" appears more than once in the sheet\.$/, '"$1" kom meer as een keer in die blad voor.');
 addPattern(/^"(.+)" appears more than once as a new student\.$/, '"$1" kom meer as een keer as nuwe leerder voor.');
