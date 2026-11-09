@@ -696,20 +696,30 @@ html[lang="af"] .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="3"]::b
 .ch-post-card__meta { font-size: .875rem; color: var(--text-light); margin: 0 0 .5rem; }
 
 /* Student channel tree */
-.channel-tree--student { max-width: 100%; }
-.channel-section { margin-bottom: .5rem; }
-.channel-section__head { font-size: 1rem; font-weight: 600; padding: .6rem 0; cursor: pointer; min-height: 44px; display: flex; align-items: center; list-style: none; border-bottom: 1px solid var(--border); }
+/* Student channel tree */
+.channel-tree--student { max-width: 100%; display: flex; flex-direction: column; gap: .75rem; }
+.channel-section { border-radius: var(--radius); overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+.channel-section__head { font-size: 1.0625rem; font-weight: 700; padding: .85rem 1rem; cursor: pointer; min-height: 52px; display: flex; align-items: center; list-style: none; background: var(--primary); color: #fff; border-bottom: none; }
 .channel-section__head::marker, .channel-section__head::-webkit-details-marker { display: none; }
-.channel-section__body { padding: .4rem 0 .4rem .75rem; display: flex; flex-direction: column; gap: .25rem; }
-.channel-sub-btn { text-align: left; background: none; border: none; border-radius: var(--radius); padding: .6rem .75rem; font-size: .9375rem; cursor: pointer; color: var(--text); min-height: 44px; display: block; width: 100%; }
-.channel-sub-btn:hover { background: var(--bg); color: var(--primary); }
-.channel-section--nested { margin: 0; }
-.channel-sub-btn--parent { font-weight: 600; font-size: .9rem; color: var(--text-light); padding: .5rem .75rem .5rem 0; min-height: 40px; list-style: none; cursor: pointer; display: flex; align-items: center; width: 100%; background: none; border: none; }
+.channel-section__head::after { content: '›'; margin-left: auto; font-size: 1.5rem; line-height: 1; display: block; transition: transform .2s; }
+details[open] > .channel-section__head::after { transform: rotate(90deg); }
+.channel-section__body { background: var(--surface); padding: .5rem; display: flex; flex-direction: column; gap: .35rem; }
+.channel-sub-btn { text-align: left; background: var(--bg); border: 1px solid var(--border); border-radius: calc(var(--radius) - 2px); padding: .75rem 1rem; font-size: .9375rem; cursor: pointer; color: var(--text); min-height: 50px; display: flex; align-items: center; width: 100%; transition: background .15s, color .15s, border-color .15s; }
+.channel-sub-btn::after { content: '→'; margin-left: auto; color: var(--primary); flex-shrink: 0; font-size: 1rem; }
+.channel-sub-btn:hover, .channel-sub-btn:active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.channel-sub-btn:hover::after, .channel-sub-btn:active::after { color: #fff; }
+.channel-section--nested { box-shadow: none; border: 1px solid var(--border); border-radius: calc(var(--radius) - 2px); overflow: hidden; margin: 0; }
+.channel-sub-btn--parent { font-weight: 600; font-size: .9375rem; color: var(--text); padding: .7rem 1rem; min-height: 50px; list-style: none; cursor: pointer; display: flex; align-items: center; width: 100%; background: var(--bg); border: none; border-bottom: 1px solid var(--border); transition: background .15s; }
 .channel-sub-btn--parent::marker, .channel-sub-btn--parent::-webkit-details-marker { display: none; }
-.channel-sub-btn--nested { padding-left: 1.25rem; font-size: .9rem; }
+.channel-sub-btn--parent::after { content: '›'; margin-left: auto; font-size: 1.2rem; line-height: 1; transition: transform .2s; }
+details[open] > .channel-sub-btn--parent::after { transform: rotate(90deg); }
+.channel-sub-btn--nested { padding-left: 1.5rem; border-radius: 0; border: none; border-bottom: 1px solid var(--border); background: var(--surface); }
+.channel-sub-btn--nested:last-child { border-bottom: none; }
 
-.ch-post-card--student { cursor: pointer; }
-.ch-post-card--student:hover { box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+.ch-post-card--student { cursor: pointer; border-left: 4px solid var(--primary); }
+.ch-post-card--student:hover, .ch-post-card--student:active { box-shadow: 0 3px 12px rgba(0,0,0,.12); }
+.ch-post-card--student .ch-post-card__title { white-space: normal; overflow: visible; text-overflow: unset; font-size: 1rem; line-height: 1.4; }
+.ch-post-list--student { gap: .6rem; }
 .ch-post-view { max-width: 720px; margin: 0 auto; padding: 0 1rem 2rem; }
 
 /* Linked event card inside a channel post */
