@@ -170,21 +170,21 @@
       </div>`;
 
     if (!shown.length) {
-      html += '<p class=”dash-empty”>No posts yet. Tap “+ New Post” to get started.</p>';
+      html += '<p class="dash-empty">No posts yet. Tap "+ New Post" to get started.</p>';
     } else {
       // Group buckets by subject
       const subjGroups = {};
       shown.forEach((b) => { (subjGroups[b.subject] = subjGroups[b.subject] || []).push(b); });
-      html += '<div class=”dash-subjects”>';
+      html += '<div class="dash-subjects">';
       Object.keys(subjGroups).sort().forEach((subj) => {
         const buckets = subjGroups[subj].sort((a, b) => a.grade - b.grade);
-        html += `<div class=”subj-group”>
-          <h2 class=”subj-group__title”>${esc(subj)}</h2>
-          <div class=”grade-btn-row”>`;
+        html += `<div class="subj-group">
+          <h2 class="subj-group__title">${esc(subj)}</h2>
+          <div class="grade-btn-row">`;
         buckets.forEach((b) => {
-          html += `<button class=”grade-btn” data-grade=”${esc(String(b.grade))}” data-subject=”${esc(b.subject)}”>
-            <span class=”grade-btn__label”>Grade ${esc(String(b.grade))}</span>
-            <span class=”grade-btn__info”>${b.published} published${b.avg_score != null ? ` &bull; ${b.avg_score}% avg` : ''}</span>
+          html += `<button class="grade-btn" data-grade="${esc(String(b.grade))}" data-subject="${esc(b.subject)}">
+            <span class="grade-btn__label">Grade ${esc(String(b.grade))}</span>
+            <span class="grade-btn__info">${b.published} published${b.avg_score != null ? ` &bull; ${b.avg_score}% avg` : ''}</span>
           </button>`;
         });
         html += '</div></div>';
