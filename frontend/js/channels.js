@@ -138,6 +138,7 @@ const ChannelsTeacher = (() => {
             <div class="table-actions">
               <button class="btn btn--secondary btn--sm" data-action="edit-post"   data-pid="${ChEsc(p.id)}">Edit</button>
               <button class="btn btn--secondary btn--sm" data-action="trans-post"  data-pid="${ChEsc(p.id)}">Translate</button>
+              <button class="btn btn--ghost     btn--sm" data-action="copy-link"   data-pid="${ChEsc(p.id)}" title="Copy shareable student link">🔗 Copy link</button>
               <button class="btn btn--danger    btn--sm" data-action="del-post"    data-pid="${ChEsc(p.id)}">Delete</button>
             </div>
           </div>`;
@@ -151,6 +152,12 @@ const ChannelsTeacher = (() => {
     }));
     pane.querySelectorAll('[data-action="trans-post"]').forEach((b) => b.addEventListener('click', () => {
       const p = posts.find((x) => x.id === b.dataset.pid); if (p) showTranslateModal(p);
+    }));
+    pane.querySelectorAll('[data-action="copy-link"]').forEach((b) => b.addEventListener('click', () => {
+      const url = `${window.location.origin}/student/${SCHOOL_SLUG}?ch=${encodeURIComponent(b.dataset.pid)}`;
+      navigator.clipboard.writeText(url)
+        .then(() => _notify('Link copied to clipboard!'))
+        .catch(() => { try { prompt('Copy this link:', url); } catch {} });
     }));
     pane.querySelectorAll('[data-action="del-post"]').forEach((b) => b.addEventListener('click', () => deletePost(b.dataset.pid, id)));
   }
@@ -365,7 +372,7 @@ const ChannelsStudent = (() => {
   let _session;
   let _channels = [], _events = [];
 
-  async function mount(container, session) {
+  async function mount(container, session, openPostId) {
     _session = session;
     container.innerHTML = `<p class="loading-text">${t('loading')}</p>`;
     try {
@@ -375,6 +382,16 @@ const ChannelsStudent = (() => {
       ]);
     } catch (e) { container.innerHTML = `<p class="loading-text" style="color:red">${ChEsc(e.message)}</p>`; return; }
     renderTree(container);
+    if (openPostId) {
+      try {
+        const lang = currentLang();
+        const post = await apiGet(`/channel-posts/${encodeURIComponent(openPostId)}?lang=${lang}`);
+        if (post?.channel_id) {
+          const posts = await apiGet(`/channel-posts?school_id=${SCHOOL_SLUG}&channel_id=${encodeURIComponent(post.channel_id)}&lang=${lang}`);
+          openPost(container, openPostId, posts, post.channel_id);
+        }
+      } catch {}
+    }
   }
 
   function renderTree(container) {

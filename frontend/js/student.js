@@ -451,7 +451,7 @@
   let _channelsMounted = false;
   let _calendarMounted = false;
 
-  function switchTab(tab) {
+  function switchTab(tab, openPostId) {
     mainTab = tab;
     renderTabBar();
     main.style.display        = tab === 'lessons'  ? '' : 'none';
@@ -459,7 +459,7 @@
     calendarContainer.style.display = tab === 'calendar' ? '' : 'none';
     if (tab === 'channels' && !_channelsMounted) {
       _channelsMounted = true;
-      ChannelsStudent.mount(channelsContainer, session);
+      ChannelsStudent.mount(channelsContainer, session, openPostId);
     }
     if (tab === 'calendar' && !_calendarMounted) {
       _calendarMounted = true;
@@ -474,6 +474,10 @@
   calendarContainer.style.display = 'none';
 
   renderTabBar();
+
+  // Deep-link: ?ch=<postId> jumps straight to a channel post
+  const _deepLinkPostId = new URLSearchParams(window.location.search).get('ch') || null;
+  if (_deepLinkPostId) switchTab('channels', _deepLinkPostId);
 
   // English <-> Afrikaans: redraw whatever is on screen (a quiz in progress restarts)
   document.addEventListener('uilangchange', () => {
