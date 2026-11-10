@@ -165,21 +165,21 @@
       </div>`;
 
     if (!shown.length) {
-      html += '<p class=”dash-empty”>No posts yet. Tap “+ New Post” to get started.</p>';
+      html += '<p class="dash-empty">No posts yet. Tap "+ New Post" to get started.</p>';
     } else {
       // Group buckets by subject
       const subjGroups = {};
       shown.forEach((b) => { (subjGroups[b.subject] = subjGroups[b.subject] || []).push(b); });
-      html += '<div class=”dash-subjects”>';
+      html += '<div class="dash-subjects">';
       Object.keys(subjGroups).sort().forEach((subj) => {
         const buckets = subjGroups[subj].sort((a, b) => a.grade - b.grade);
-        html += `<div class=”subj-group”>
-          <h2 class=”subj-group__title”>${esc(subj)}</h2>
-          <div class=”grade-btn-row”>`;
+        html += `<div class="subj-group">
+          <h2 class="subj-group__title">${esc(subj)}</h2>
+          <div class="grade-btn-row">`;
         buckets.forEach((b) => {
-          html += `<button class=”grade-btn” data-grade=”${esc(String(b.grade))}” data-subject=”${esc(b.subject)}”>
-            <span class=”grade-btn__label”>Grade ${esc(String(b.grade))}</span>
-            <span class=”grade-btn__info”>${b.published} published${b.avg_score != null ? ` &bull; ${b.avg_score}% avg` : ''}</span>
+          html += `<button class="grade-btn" data-grade="${esc(String(b.grade))}" data-subject="${esc(b.subject)}">
+            <span class="grade-btn__label">Grade ${esc(String(b.grade))}</span>
+            <span class="grade-btn__info">${b.published} published${b.avg_score != null ? ` &bull; ${b.avg_score}% avg` : ''}</span>
           </button>`;
         });
         html += '</div></div>';
@@ -317,10 +317,13 @@
   function showEditor(post, defaults) {
     const isEdit   = !!post;
     const pre      = post ?? defaults ?? (session.role === 'teacher' && session.grade ? { grade: session.grade } : {});
-    const canPublish = ['admin', 'super_admin'].includes(session.role) || isEdit;
     quizQuestions  = post ? ((() => { try { return JSON.parse(post.quiz_json || '[]'); } catch { return []; } })()) : [];
 
-    const gradeOptions = (school.grades ?? [1,2,3,4,5,6,7]).map((g) =>
+    // Teachers with a single assigned grade only see that grade; multi-grade or admin see all
+    const allowedGrades = (session.role === 'teacher' && session.grade)
+      ? [session.grade]
+      : (school.grades ?? [1,2,3,4,5,6,7]);
+    const gradeOptions = allowedGrades.map((g) =>
       `<option value="${g}" ${pre.grade == g ? 'selected' : ''}>Grade ${g}</option>`).join('');
     const subjectOptions = subjects.map((s) =>
       `<option value="${esc(s)}" ${pre.subject === s ? 'selected' : ''}>${esc(s)}</option>`).join('');
