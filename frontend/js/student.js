@@ -24,7 +24,11 @@
   // Branding — apply cached color immediately to avoid flash on navigation
   const _brandKey = `brand_color_${SCHOOL_SLUG}`;
   const _cachedColor = sessionStorage.getItem(_brandKey);
-  if (_cachedColor) document.documentElement.style.setProperty('--primary', _cachedColor);
+  const _header = document.getElementById('site-header');
+  if (_cachedColor) {
+    document.documentElement.style.setProperty('--primary', _cachedColor);
+    if (_header) _header.style.opacity = '1';
+  }
 
   try {
     const school = await apiGet(`/school/config/${SCHOOL_SLUG}`);
@@ -34,6 +38,7 @@
     setBrand(document.getElementById('school-brand'), school.logo_url, school.name);
     sessionStorage.setItem(_brandKey, _color);
   } catch {}
+  if (_header) _header.style.opacity = '1';
 
   // Greet individual students by name (shared grade PINs have no personal name)
 
@@ -522,17 +527,22 @@ function renderPublicChannelPost(post) {
         <a href="/${SCHOOL_SLUG}" class="btn btn--primary">Log in for more</a>
       </p>
     </div>`;
-  // Apply school branding if cached
+  // Apply school branding if cached, else reveal header after fetch
+  const _pubHeader = document.getElementById('site-header');
   try {
     const c = sessionStorage.getItem(`brand_color_${SCHOOL_SLUG}`);
-    if (c) document.documentElement.style.setProperty('--primary', c);
+    if (c) {
+      document.documentElement.style.setProperty('--primary', c);
+      if (_pubHeader) _pubHeader.style.opacity = '1';
+    }
   } catch {}
-  // Try to load school name/logo asynchronously
+  // Load school name/logo; always reveals header on completion
   fetch(`${API_BASE}/school/config/${SCHOOL_SLUG}`)
     .then((r) => r.json())
     .then((school) => {
       document.title = `${esc(school.name)} — ${esc(post.title)}`;
       setBrand(document.getElementById('school-brand'), school.logo_url, school.name);
       if (school.primary_colour) document.documentElement.style.setProperty('--primary', school.primary_colour);
-    }).catch(() => {});
+      if (_pubHeader) _pubHeader.style.opacity = '1';
+    }).catch(() => { if (_pubHeader) _pubHeader.style.opacity = '1'; });
 }
