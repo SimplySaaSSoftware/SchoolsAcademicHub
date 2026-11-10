@@ -285,6 +285,7 @@ export interface ChannelPostDoc extends BaseDoc {
   lang: Lang;
   translations?: Partial<Record<Lang, ChannelPostTranslation>>;
   status: 'draft' | 'published';
+  is_public?: boolean;        // if true, readable without login via the deep-link URL
   author_id: string;
   author_name: string;
   updated_at: string;

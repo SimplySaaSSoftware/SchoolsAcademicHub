@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { sql, insertItem, upsertItem, deleteItemById } from '../lib/db';
-import { requireAuth, requireRole, errorResponse, HttpError, effectiveSchoolId } from '../lib/middleware';
+import { requireAuth, optionalAuth, requireRole, errorResponse, HttpError, effectiveSchoolId } from '../lib/middleware';
 import { ChannelPostDoc, ChannelPostTranslation, Lang } from '../types';
 import { isLang } from '../lib/translation';
 import { randomUUID, createHash } from 'crypto';
@@ -33,11 +33,15 @@ function localizePost(post: ChannelPostDoc, lang: Lang | null): Record<string, u
 
 async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
   try {
-    const jwt = requireAuth(req);
-    const isStaff = ['teacher', 'admin', 'super_admin'].includes(jwt.role);
+    // GET single may be unauthenticated when the post is public
+    const isPublicGet = req.method === 'GET' && !!req.params.id;
+    const jwt = isPublicGet ? optionalAuth(req) : requireAuth(req);
+    if (!isPublicGet && !jwt) throw new HttpError(401, 'Missing auth token');
+    const isStaff = jwt ? ['teacher', 'admin', 'super_admin'].includes(jwt.role) : false;
 
     // ── GET list ──────────────────────────────────────────────────────
     if (req.method === 'GET' && !req.params.id) {
+      if (!jwt) throw new HttpError(401, 'Missing auth token');
       const schoolId = req.query.get('school_id') ?? jwt.school_id;
       const channelId = req.query.get('channel_id');
       const lang = req.query.get('lang');
@@ -67,6 +71,12 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
       const rows = await sql<{ data: ChannelPostDoc }[]>`SELECT data FROM items WHERE id = ${id} AND type = 'channel_post'`;
       if (!rows.length) throw new HttpError(404, 'Post not found');
       const post = rows[0].data;
+      if (!jwt) {
+        // Unauthenticated: only allow public, published posts
+        if (!post.is_public || post.status !== 'published') throw new HttpError(404, 'Post not found');
+        const lang = req.query.get('lang');
+        return { jsonBody: localizePost(post, isLang(lang) ? lang : null) };
+      }
       if (post.school_id !== jwt.school_id && jwt.role !== 'super_admin') throw new HttpError(403, 'Forbidden');
       if (!isStaff && post.status !== 'published') throw new HttpError(404, 'Post not found');
       const lang = req.query.get('lang');
@@ -74,6 +84,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
     }
 
     // ── Writes: staff only ─────────────────────────────────────────────
+    if (!jwt) throw new HttpError(401, 'Missing auth token');
     requireRole(jwt, ['teacher', 'admin', 'super_admin']);
     const schoolId = effectiveSchoolId(req, jwt);
 
@@ -93,6 +104,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
         expires_at:       body.expires_at ?? null,
         lang:             isLang(body.lang) ? body.lang : 'en',
         status:           body.status ?? 'draft',
+        is_public:        body.is_public ?? false,
         author_id:        jwt.user_id,
         author_name:      jwt.name ?? jwt.user_id,
         created_at:       now,
@@ -164,6 +176,7 @@ async function handler(req: HttpRequest, _ctx: InvocationContext): Promise<HttpR
         event_id:         body.event_id !== undefined ? body.event_id : post.event_id,
         expires_at:       body.expires_at !== undefined ? body.expires_at : post.expires_at,
         status:           body.status ?? post.status,
+        is_public:        body.is_public !== undefined ? body.is_public : (post.is_public ?? false),
         updated_at:       now,
       };
       // Mark translation stale if text changed

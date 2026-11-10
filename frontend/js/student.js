@@ -1,5 +1,20 @@
 /* student.js — student portal */
 (async () => {
+  // Public channel post: try unauthenticated fetch before requiring login
+  const _chParam = new URLSearchParams(window.location.search).get('ch');
+  if (_chParam) {
+    try {
+      const res = await fetch(`${API_BASE}/channel-posts/${encodeURIComponent(_chParam)}`);
+      if (res.ok) {
+        const post = await res.json();
+        if (post.is_public) {
+          renderPublicChannelPost(post);
+          return;
+        }
+      }
+    } catch {}
+  }
+
   const session = requireSession(['student']);
   if (!session) return;
 
@@ -491,3 +506,33 @@
 
   await loadPosts();
 })();
+
+// ── Public channel post view (no login) ───────────────────────────────────────
+function renderPublicChannelPost(post) {
+  const esc = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const fmt = (d) => { const dt = new Date(d); return isNaN(dt) ? '' : dt.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }); };
+  document.querySelector('main').innerHTML = `
+    <div style="max-width:720px;margin:0 auto;padding:1.25rem 1rem 3rem">
+      <article class="post-view ch-post-view">
+        <h1 class="post-view__title">${esc(post.title)}</h1>
+        <p class="post-view__meta">${fmt(post.updated_at)}</p>
+        <div class="post-content">${safeHtml(post.content_html ?? '')}</div>
+      </article>
+      <p style="margin-top:2rem;text-align:center">
+        <a href="/${SCHOOL_SLUG}" class="btn btn--primary">Log in for more</a>
+      </p>
+    </div>`;
+  // Apply school branding if cached
+  try {
+    const c = sessionStorage.getItem(`brand_color_${SCHOOL_SLUG}`);
+    if (c) document.documentElement.style.setProperty('--primary', c);
+  } catch {}
+  // Try to load school name/logo asynchronously
+  fetch(`${API_BASE}/school/config/${SCHOOL_SLUG}`)
+    .then((r) => r.json())
+    .then((school) => {
+      document.title = `${esc(school.name)} — ${esc(post.title)}`;
+      setBrand(document.getElementById('school-brand'), school.logo_url, school.name);
+      if (school.primary_colour) document.documentElement.style.setProperty('--primary', school.primary_colour);
+    }).catch(() => {});
+}

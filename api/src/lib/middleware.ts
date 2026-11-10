@@ -19,6 +19,12 @@ export function requireAuth(req: HttpRequest): JwtPayload {
   }
 }
 
+export function optionalAuth(req: HttpRequest): JwtPayload | null {
+  const token = req.headers.get('x-auth-token') ?? '';
+  if (!token) return null;
+  try { return verifyToken(token); } catch { return null; }
+}
+
 export function requireRole(payload: JwtPayload, roles: Role[]): void {
   if (!roles.includes(payload.role)) {
     throw new HttpError(403, `Requires one of: ${roles.join(', ')}`);

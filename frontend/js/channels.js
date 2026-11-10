@@ -265,6 +265,15 @@ const ChannelsTeacher = (() => {
                 <option value="af" ${post?.lang === 'af' ? 'selected' : ''}>Afrikaans</option>
               </select>
             </div>
+            <div class="form-group">
+              <label class="form-check" style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+                <input type="checkbox" id="ch-f-public" ${post?.is_public ? 'checked' : ''} style="width:1.25rem;height:1.25rem;accent-color:var(--primary);flex-shrink:0"/>
+                <span>
+                  <strong>Public — visible without login</strong>
+                  <span style="display:block;font-size:.875rem;color:var(--text-light)">Anyone with the link can read this post. Use for announcements you want to share to WhatsApp.</span>
+                </span>
+              </label>
+            </div>
           </div>
         </div>
       </div>`;
@@ -288,12 +297,13 @@ const ChannelsTeacher = (() => {
       const event_id = document.getElementById('ch-f-event').value || null;
       const expires_at = document.getElementById('ch-f-expires').value || null;
       const lang = document.getElementById('ch-f-lang').value;
+      const is_public = document.getElementById('ch-f-public').checked;
       try {
         if (isEdit) {
-          await apiPut(`/channel-posts/${post.id}`, { title, content_html, event_id, expires_at, lang, status });
+          await apiPut(`/channel-posts/${post.id}`, { title, content_html, event_id, expires_at, lang, status, is_public });
           _notify(status === 'published' ? 'Post published!' : 'Draft saved.');
         } else {
-          await apiPost('/channel-posts', { channel_id: channelId, title, content_html, event_id, expires_at, lang, status, school_id: SCHOOL_SLUG });
+          await apiPost('/channel-posts', { channel_id: channelId, title, content_html, event_id, expires_at, lang, status, is_public, school_id: SCHOOL_SLUG });
           _notify(status === 'published' ? 'Post published!' : 'Draft saved.');
         }
         close(); openChannel(channelId);
