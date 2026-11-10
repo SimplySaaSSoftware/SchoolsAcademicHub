@@ -9,7 +9,11 @@
   // Branding — apply cached color immediately to avoid flash on navigation
   const _brandKey = `brand_color_${SCHOOL_SLUG}`;
   const _cachedColor = sessionStorage.getItem(_brandKey);
-  if (_cachedColor) document.documentElement.style.setProperty('--primary', _cachedColor);
+  const _header = document.getElementById('site-header');
+  if (_cachedColor) {
+    document.documentElement.style.setProperty('--primary', _cachedColor);
+    if (_header) _header.style.opacity = '1';
+  }
 
   let school = {};
   try {
@@ -20,6 +24,7 @@
     setBrand(document.getElementById('school-brand'), school.logo_url, `${school.name} — Admin`);
     sessionStorage.setItem(_brandKey, _color);
   } catch {}
+  if (_header) _header.style.opacity = '1';
 
   document.getElementById('btn-logout').addEventListener('click', logout);
 
