@@ -317,10 +317,13 @@
   function showEditor(post, defaults) {
     const isEdit   = !!post;
     const pre      = post ?? defaults ?? (session.role === 'teacher' && session.grade ? { grade: session.grade } : {});
-    const canPublish = ['admin', 'super_admin'].includes(session.role) || isEdit;
     quizQuestions  = post ? ((() => { try { return JSON.parse(post.quiz_json || '[]'); } catch { return []; } })()) : [];
 
-    const gradeOptions = (school.grades ?? [1,2,3,4,5,6,7]).map((g) =>
+    // Teachers with a single assigned grade only see that grade; multi-grade or admin see all
+    const allowedGrades = (session.role === 'teacher' && session.grade)
+      ? [session.grade]
+      : (school.grades ?? [1,2,3,4,5,6,7]);
+    const gradeOptions = allowedGrades.map((g) =>
       `<option value="${g}" ${pre.grade == g ? 'selected' : ''}>Grade ${g}</option>`).join('');
     const subjectOptions = subjects.map((s) =>
       `<option value="${esc(s)}" ${pre.subject === s ? 'selected' : ''}>${esc(s)}</option>`).join('');
