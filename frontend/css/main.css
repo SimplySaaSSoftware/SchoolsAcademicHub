@@ -798,7 +798,7 @@ details[open] > .channel-sub-btn--parent::after { transform: rotate(90deg); }
 .cal-upcoming-head { font-size: 1rem; font-weight: 600; margin: 1.25rem 0 .5rem; }
 
 /* ── Student tab navigation ──────────────────────────────────── */
-.student-tabs { display: flex; border-bottom: 2px solid var(--border); background: var(--surface); overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.student-tabs { display: flex; border-bottom: 2px solid var(--border); background: var(--surface); }
 .student-tab { flex: 1; padding: .75rem .5rem; min-height: 44px; border: none; background: none; font-size: .9375rem; font-weight: 500; color: var(--text-light); cursor: pointer; white-space: nowrap; border-bottom: 3px solid transparent; margin-bottom: -2px; }
 .student-tab--on { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
 .student-tab:hover:not(.student-tab--on) { color: var(--text); background: var(--bg); }
