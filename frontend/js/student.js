@@ -296,9 +296,7 @@
     document.head.appendChild(s);
   }
 
-  function renderMathText(text) {
-    if (!text) return '';
-    if (/<[a-z][\s\S]*>/i.test(text)) return sanitize(text);
+  function renderMathFlat(text) {
     if (!window.katex || !text.includes('$')) return esc(text);
     let html = '', i = 0;
     while (i < text.length) {
@@ -319,6 +317,23 @@
       }
     }
     return html;
+  }
+
+  function renderMathText(text) {
+    if (!text) return '';
+    if (!/<[a-z][\s\S]*>/i.test(text)) return renderMathFlat(text);
+    // HTML from Quill — render LaTeX inside text nodes, preserve HTML structure
+    if (!window.katex || !text.includes('$')) return sanitize(text);
+    const div = document.createElement('div');
+    div.innerHTML = sanitize(text);
+    (function walk(node) {
+      if (node.nodeType === 3 && node.textContent.includes('$')) {
+        const sp = document.createElement('span');
+        sp.innerHTML = renderMathFlat(node.textContent);
+        node.parentNode.replaceChild(sp, node);
+      } else { Array.from(node.childNodes).forEach(walk); }
+    })(div);
+    return div.innerHTML;
   }
 
   // ── Quiz renderer ───────────────────────────────────────────
